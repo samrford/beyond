@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+package-lock.json
+go.sum
+
+# Build outputs
+frontend/.next/
+frontend/out/
+backend/bin/
+backend/pkg/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Test coverage
+coverage/
+*.cover
+*.prof
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Next.js specific
+.next/
+out/
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Lock files (optional - keep for reproducible builds)
+# package-lock.json
+# go.sum
