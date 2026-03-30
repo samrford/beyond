@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"beyond/backend/internal/data"
 	"beyond/backend/internal/handlers"
@@ -12,7 +13,7 @@ import (
 // corsMiddleware adds CORS headers to all responses
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
+		// Set CORS headers FIRST, before any headers are written
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -28,22 +29,53 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// imageHandler handles image requests with a simple SVG placeholder
+// imageHandler handles image requests with unique SVG placeholders based on path
 func imageHandler(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers
+	// Set CORS headers FIRST, before any headers are written
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS, POST, PUT, DELETE")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-	// Simple SVG placeholder image
-	imageData := []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
-  <rect width="800" height="600" fill="#f0f0f0"/>
-  <text x="400" y="300" font-family="Arial" font-size="48" text-anchor="middle" fill="#666">Beyond Travel</text>
-</svg>`)
+	// Handle preflight OPTIONS request
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Only allow GET requests
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract path info to generate unique images
+	path := r.URL.Path
+
+	// Generate unique SVG based on path
+	imageData := generateImageSVG(path)
 
 	w.Header().Set("Content-Type", "image/svg+xml")
 	w.Write(imageData)
+}
+
+// generateImageSVG creates a unique SVG image based on the path
+func generateImageSVG(path string) []byte {
+	// Extract a simple identifier from the path
+	pathID := strings.TrimPrefix(path, "/api/image/")
+	if pathID == "" {
+		pathID = "default"
+	}
+
+	// Create a colorful SVG with the path ID
+	svg := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#f0f0f0"/>
+  <circle cx="400" cy="200" r="100" fill="#e0e0e0"/>
+  <text x="400" y="300" font-family="Arial" font-size="48" text-anchor="middle" fill="#666">` + pathID + `</text>
+  <text x="400" y="360" font-family="Arial" font-size="24" text-anchor="middle" fill="#999">Beyond Travel</text>
+</svg>`)
+
+	return svg
 }
 
 func main() {
@@ -60,7 +92,10 @@ func main() {
 	mux.HandleFunc("/api/trips", corsMiddleware(handler.ListTrips))
 	mux.HandleFunc("/api/trips/", corsMiddleware(handler.GetTrip))
 
-	// Image handler for placeholder images
+	// Image handler for placeholder images (with CORS) - handles /api/image/* paths
+	mux.HandleFunc("/api/image/", imageHandler)
+
+	// Also handle exact /api/image path
 	mux.HandleFunc("/api/image", imageHandler)
 
 	// Enable CORS for development - catch-all route

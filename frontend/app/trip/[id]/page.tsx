@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import CheckpointCard from "@/components/CheckpointCard";
+
+// Get API base URL from environment variable
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 interface Checkpoint {
   id: string;
@@ -33,7 +37,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
 
   const fetchTrip = async () => {
     try {
-      const response = await fetch(`http://localhost:8080/api/trips/${params.id}`);
+      const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
       if (!response.ok) throw new Error("Failed to fetch trip");
       const data = await response.json();
       console.log("Fetched trip data:", data);
@@ -93,7 +97,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
   // Helper function to get image from backend
   const getImageUrl = (photoPath: string) => {
     if (photoPath.startsWith("/api/image")) {
-      return photoPath;
+      return `${API_BASE_URL}${photoPath}`;
     }
     return photoPath;
   };
@@ -127,37 +131,11 @@ export default function TripPage({ params }: { params: { id: string } }) {
         <h2 className="text-2xl font-semibold text-gray-800 mb-6">Trip Timeline</h2>
         <div className="space-y-8">
           {trip.checkpoints?.map((checkpoint, index) => (
-            <div key={checkpoint.id} className="relative pl-8 border-l-2 border-primary-200">
-              <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary-500" />
-              <div className="bg-white rounded-lg shadow-sm p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{checkpoint.name}</h3>
-                    <p className="text-sm text-gray-500">{checkpoint.location}</p>
-                  </div>
-                  <span className="text-sm text-gray-400">
-                    {new Date(checkpoint.timestamp).toLocaleDateString()}
-                  </span>
-                </div>
-                <p className="text-gray-600 mb-2">{checkpoint.description}</p>
-                {checkpoint.photos && checkpoint.photos.length > 0 && (
-                  <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
-                    {checkpoint.photos.map((photo, i) => (
-                      <img
-                        key={i}
-                        src={getImageUrl(photo)}
-                        alt={`${checkpoint.name} ${i + 1}`}
-                        className="h-32 w-48 object-cover rounded shadow-sm"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-                <p className="text-gray-500 italic">"{checkpoint.journal}"</p>
-              </div>
-            </div>
+            <CheckpointCard
+              key={checkpoint.id}
+              checkpoint={checkpoint}
+              index={index}
+            />
           ))}
         </div>
       </div>

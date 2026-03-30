@@ -1,25 +1,47 @@
 package handlers
 
 import (
+	"fmt"
 	"net/http"
 )
 
-// ImageHandler handles image requests
-type ImageHandler struct {
-	imageData   []byte
-	contentType string
-}
+// ImageHandler handles image requests with proper CORS
+func ImageHandler(w http.ResponseWriter, r *http.Request) {
+	// Set CORS headers FIRST, before any headers are written
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
-// NewImageHandler creates a new ImageHandler
-func NewImageHandler(imageData []byte) *ImageHandler {
-	return &ImageHandler{
-		imageData:   imageData,
-		contentType: "image/jpeg",
+	// Handle preflight OPTIONS request
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
-}
 
-// ServeImage handles GET /api/image
-func (h *ImageHandler) ServeImage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", h.contentType)
-	w.Write(h.imageData)
+	// Only allow GET requests
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract image path from URL
+	path := r.URL.Path
+	if len(path) < 10 || path[:7] != "/api/image" {
+		http.Error(w, "Invalid image path", http.StatusBadRequest)
+		return
+	}
+
+	// Extract the image identifier from the path
+	imageID := path[8:] // Remove "/api/image" prefix
+
+	// Generate a unique image based on the ID
+	imageData := fmt.Sprintf("Beyond Travel Image: %s", imageID)
+	imageBytes := []byte(imageData)
+
+	// Set content type and length
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(imageBytes)))
+
+	// Write the image data
+	w.Write(imageBytes)
 }
