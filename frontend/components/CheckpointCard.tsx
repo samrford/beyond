@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Pencil, Trash2 } from "lucide-react";
 
 // Get API base URL from environment variable
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
@@ -18,9 +20,11 @@ interface Checkpoint {
 interface CheckpointCardProps {
   checkpoint: Checkpoint;
   index: number;
+  tripId: string;
+  onDelete: (id: string) => void;
 }
 
-export default function CheckpointCard({ checkpoint, index }: CheckpointCardProps) {
+export default function CheckpointCard({ checkpoint, index, tripId, onDelete }: CheckpointCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleExpand = () => {
@@ -44,9 +48,27 @@ export default function CheckpointCard({ checkpoint, index }: CheckpointCardProp
             <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{checkpoint.name}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400">{checkpoint.location}</p>
           </div>
-          <span className="text-sm text-gray-400 dark:text-gray-500">
-            {new Date(checkpoint.timestamp).toLocaleDateString()}
-          </span>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2 text-gray-400">
+              <Link 
+                href={`/trip/${tripId}/checkpoint/${checkpoint.id}/edit`}
+                className="hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-full transition-colors"
+                title="Edit Checkpoint"
+              >
+                <Pencil size={18} />
+              </Link>
+              <button 
+                onClick={() => onDelete(checkpoint.id)}
+                className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors"
+                title="Delete Checkpoint"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+            <span className="text-sm text-gray-400 dark:text-gray-500">
+              {new Date(checkpoint.timestamp).toLocaleDateString()}
+            </span>
+          </div>
         </div>
         
         <p className="text-gray-600 dark:text-gray-300 mb-2">{checkpoint.description}</p>
