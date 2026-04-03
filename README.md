@@ -44,21 +44,27 @@ beyond/
 
 ---
 
-## 💾 Database & migrations
+---
 
-We use **PostgreSQL** for storage and **Goose** for schema migrations. 
-Migrations are stored in `backend/internal/data/migrations` and are automatically applied by the backend on startup.
+## 💾 Database Management
 
-### Resetting the Database
-To wipe the database and reset the schema, run:
-```bash
-docker-compose down -v
-tilt up
-```
+We use **PostgreSQL** for storage. Migrations in `backend/internal/data/migrations` run automatically via **Goose** on startup.
+
+**Quick Commands:**
+- **Explore DB:** `docker exec -it beyond-db-1 psql -U beyond -d beyond` (or connect your local tools directly to `postgres://beyond:password@localhost:5432/beyond`)
+- **Reset DB:** `docker-compose down -v` to wipe the database volume.
+
+---
 
 ---
 
 ## 🔌 API Endpoints
-- `GET /api/trips` - List all trips
-- `GET /api/trips/{id}` - Get a specific trip
-- `GET /api/image/{id}` - Generate placeholder SVG images (temp dev helper)
+- `GET    /api/trips` - List all trips
+- `POST   /api/trips` - Create a new trip
+- `GET    /api/trips/{id}` - Get a specific trip and its checkpoints
+- `PUT    /api/trips/{id}` - Update a specific trip
+- `DELETE /api/trips/{id}` - Delete a specific trip
+- `POST   /api/trips/{id}/checkpoints` - Add a checkpoint to a trip
+- `PUT    /api/checkpoints/{id}` - Update a checkpoint
+- `DELETE /api/checkpoints/{id}` - Delete a checkpoint
+- `GET    /api/image/{id}` - Generate placeholder SVG images (temp dev helper)

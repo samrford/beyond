@@ -85,14 +85,46 @@ func main() {
 	}
 	defer db.Close()
 
-	// Create handler
-	handler := handlers.NewTripsHandler(db)
+	// Create handlers
+	tripsHandler := handlers.NewTripsHandler(db)
+	checkpointsHandler := handlers.NewCheckpointsHandler(db)
 
 	// Create server with CORS middleware
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/trips", corsMiddleware(handler.ListTrips))
-	mux.HandleFunc("/api/trips/", corsMiddleware(handler.GetTrip))
+	mux.HandleFunc("/api/trips", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			tripsHandler.ListTrips(w, r)
+		} else if r.Method == "POST" {
+			tripsHandler.CreateTrip(w, r)
+		}
+	}))
+
+	mux.HandleFunc("/api/trips/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+		if strings.HasSuffix(path, "/checkpoints") {
+			if r.Method == "POST" {
+				checkpointsHandler.CreateCheckpoint(w, r)
+			}
+			return
+		}
+
+		if r.Method == "GET" {
+			tripsHandler.GetTrip(w, r)
+		} else if r.Method == "PUT" {
+			tripsHandler.UpdateTrip(w, r)
+		} else if r.Method == "DELETE" {
+			tripsHandler.DeleteTrip(w, r)
+		}
+	}))
+
+	mux.HandleFunc("/api/checkpoints/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "PUT" {
+			checkpointsHandler.UpdateCheckpoint(w, r)
+		} else if r.Method == "DELETE" {
+			checkpointsHandler.DeleteCheckpoint(w, r)
+		}
+	}))
 
 	mux.HandleFunc("/api/image/", imageHandler)
 	mux.HandleFunc("/api/image", imageHandler)

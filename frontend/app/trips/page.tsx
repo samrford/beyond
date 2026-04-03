@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Plus, Trash2 } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface Trip {
   id: string;
@@ -15,6 +17,7 @@ interface Trip {
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, tripId: "" });
 
   useEffect(() => {
     fetchTrips();
@@ -45,6 +48,31 @@ export default function TripsPage() {
     }
   };
 
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.preventDefault(); // Stop link navigation
+    setDeleteModal({ isOpen: true, tripId: id });
+  };
+
+  const confirmDelete = async () => {
+    const id = deleteModal.tripId;
+    setDeleteModal({ isOpen: false, tripId: "" });
+    if (!id) return;
+
+    try {
+      const response = await fetch(`http://localhost:8080/api/trips/${id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        fetchTrips();
+      } else {
+        alert("Failed to delete trip");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error deleting trip");
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
@@ -66,10 +94,19 @@ export default function TripsPage() {
   }
 
   return (
-    <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-8">My Trips</h1>
-        <div className="grid gap-6">
+    <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
+      <div className="max-w-4xl mx-auto py-4">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 border-none">My Trips</h1>
+          <Link
+            href="/trips/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white dark:bg-primary-500 rounded-md hover:bg-primary-700 dark:hover:bg-primary-600 border-none font-medium text-sm transition-colors"
+          >
+            <Plus size={18} />
+            New Trip
+          </Link>
+        </div>
+        <div className="grid gap-6 border-none">
           {trips.map((trip) => (
             <Link
               key={trip.id}
@@ -88,20 +125,35 @@ export default function TripsPage() {
               </div>
 
 
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+              <div className="p-6 relative border-none">
+                <button
+                  onClick={(e) => handleDelete(trip.id, e)}
+                  className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors focus:outline-none focus:ring-2 border-none"
+                  aria-label="Delete Trip"
+                >
+                  <Trash2 size={20} />
+                </button>
+                <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 mr-8">
                   {trip.name}
                 </h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 border-none">
                   {new Date(trip.startDate).toLocaleDateString()} -{" "}
                   {new Date(trip.endDate).toLocaleDateString()}
                 </p>
-                <p className="text-gray-600 dark:text-gray-300 line-clamp-2">{trip.summary}</p>
+                <p className="text-gray-600 dark:text-gray-300 line-clamp-2 border-none">{trip.summary}</p>
               </div>
             </Link>
           ))}
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={deleteModal.isOpen}
+        title="Delete Trip"
+        message="Are you sure you want to permanently delete this trip? This action cannot be undone."
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, tripId: "" })}
+      />
     </main>
   );
 }

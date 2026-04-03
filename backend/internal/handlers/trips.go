@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"beyond/backend/internal/data"
 )
 
@@ -94,4 +96,66 @@ func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(t)
+}
+
+// CreateTrip handles POST /api/trips
+func (h *TripsHandler) CreateTrip(w http.ResponseWriter, r *http.Request) {
+	var t data.Trip
+	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	t.ID = uuid.New().String()
+
+	_, err := h.db.Exec(
+		"INSERT INTO trips (id, name, start_date, end_date, header_photo, summary) VALUES ($1, $2, $3, $4, $5, $6)",
+		t.ID, t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary,
+	)
+	if err != nil {
+		log.Printf("Error inserting trip: %v", err)
+		http.Error(w, "Failed to create trip", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(t)
+}
+
+// UpdateTrip handles PUT /api/trips/:id
+func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+
+	var t data.Trip
+	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	_, err := h.db.Exec(
+		"UPDATE trips SET name = $1, start_date = $2, end_date = $3, header_photo = $4, summary = $5 WHERE id = $6",
+		t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary, id,
+	)
+	if err != nil {
+		log.Printf("Error updating trip: %v", err)
+		http.Error(w, "Failed to update trip", http.StatusInternalServerError)
+		return
+	}
+
+	t.ID = id
+	json.NewEncoder(w).Encode(t)
+}
+
+// DeleteTrip handles DELETE /api/trips/:id
+func (h *TripsHandler) DeleteTrip(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+
+	_, err := h.db.Exec("DELETE FROM trips WHERE id = $1", id)
+	if err != nil {
+		log.Printf("Error deleting trip: %v", err)
+		http.Error(w, "Failed to delete trip", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
