@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import ThemeClient from "./ThemeClient";
 
 export const metadata: Metadata = {
   title: "Beyond - Travel Adventures",
@@ -12,8 +13,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
+    <ThemeClient initialState={{ theme: "system" }}>
+      {children}
+    </ThemeClient>
   );
 }

@@ -73,9 +73,9 @@ export default function TripPage({ params }: { params: { id: string } }) {
 
   if (loading) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-600">Loading trip...</p>
+          <p className="text-gray-600 dark:text-gray-400">Loading trip...</p>
         </div>
       </main>
     );
@@ -83,10 +83,10 @@ export default function TripPage({ params }: { params: { id: string } }) {
 
   if (!trip) {
     return (
-      <main className="min-h-screen p-8">
+      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <p className="text-gray-600">Trip not found.</p>
-          <Link href="/trips" className="text-primary-600 hover:text-primary-700">
+          <p className="text-gray-600 dark:text-gray-400">Trip not found.</p>
+          <Link href="/trips" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
             Back to trips
           </Link>
         </div>
@@ -103,32 +103,32 @@ export default function TripPage({ params }: { params: { id: string } }) {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header Section */}
-      <div className="relative h-64 bg-gray-300">
+      <div className="relative h-64 bg-gray-300 dark:bg-gray-800">
         <img
           src={getImageUrl(trip.headerPhoto)}
           alt={trip.name}
           className="w-full h-full object-cover"
         />
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 to-transparent h-16" />
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 to-transparent h-16" />
       </div>
 
 
       {/* Trip Info */}
-      <div className="max-w-4xl mx-auto -mt-10 relative px-4">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">{trip.name}</h1>
-          <p className="text-gray-500 mb-4">
+      <div className="max-w-4xl mx-auto -mt-10 relative px-4 text-gray-800 dark:text-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h1 className="text-3xl font-bold mb-2">{trip.name}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
             {new Date(trip.startDate).toLocaleDateString()} - {new Date(trip.endDate).toLocaleDateString()}
           </p>
-          <p className="text-gray-600">{trip.summary}</p>
+          <p className="text-gray-600 dark:text-gray-300">{trip.summary}</p>
         </div>
       </div>
 
       {/* Timeline */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Trip Timeline</h2>
+        <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 mb-6">Trip Timeline</h2>
         <div className="space-y-8">
           {trip.checkpoints?.map((checkpoint, index) => (
             <CheckpointCard
@@ -144,7 +144,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link
           href="/trips"
-          className="inline-block text-primary-600 hover:text-primary-700 font-medium"
+          className="inline-block text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300 font-medium"
         >
           ← Back to all trips
         </Link>

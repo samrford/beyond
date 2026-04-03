@@ -35,21 +35,21 @@ export default function CheckpointCard({ checkpoint, index }: CheckpointCardProp
   };
 
   return (
-    <div className="relative pl-8 border-l-2 border-primary-200">
-      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary-500 cursor-pointer hover:bg-primary-600 transition-colors" />
+    <div className="relative pl-8 border-l-2 border-primary-200 dark:border-primary-800">
+      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary-500 dark:bg-primary-400 cursor-pointer hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors" />
       
-      <div className="bg-white rounded-lg shadow-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
         <div className="flex items-start justify-between mb-2">
           <div>
-            <h3 className="text-lg font-semibold text-gray-800">{checkpoint.name}</h3>
-            <p className="text-sm text-gray-500">{checkpoint.location}</p>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">{checkpoint.name}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{checkpoint.location}</p>
           </div>
-          <span className="text-sm text-gray-400">
+          <span className="text-sm text-gray-400 dark:text-gray-500">
             {new Date(checkpoint.timestamp).toLocaleDateString()}
           </span>
         </div>
         
-        <p className="text-gray-600 mb-2">{checkpoint.description}</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-2">{checkpoint.description}</p>
         
         {checkpoint.photos && checkpoint.photos.length > 0 && (
           <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
@@ -67,12 +67,12 @@ export default function CheckpointCard({ checkpoint, index }: CheckpointCardProp
           </div>
         )}
         
-        <p className="text-gray-500 italic mb-3">"{checkpoint.journal}"</p>
+        <p className="text-gray-500 dark:text-gray-400 italic mb-3">"{checkpoint.journal}"</p>
         
         {/* Expand/Collapse Button */}
         <button
           onClick={toggleExpand}
-          className="text-primary-600 hover:text-primary-700 text-sm font-medium flex items-center gap-1 transition-colors"
+          className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium flex items-center gap-1 transition-colors"
         >
           {isExpanded ? (
             <>
@@ -93,10 +93,10 @@ export default function CheckpointCard({ checkpoint, index }: CheckpointCardProp
         
         {/* Expanded Content */}
         {isExpanded && (
-          <div className="mt-4 pt-4 border-t border-gray-100 animate-fadeIn">
+          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 animate-fadeIn">
             {/* Additional Photos Section */}
             <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">More Photos</h4>
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">More Photos</h4>
               <div className="grid grid-cols-2 gap-2">
                 {checkpoint.photos.slice(0, 4).map((photo, i) => (
                   <img
@@ -114,8 +114,8 @@ export default function CheckpointCard({ checkpoint, index }: CheckpointCardProp
             
             {/* Extended Journal Entry */}
             <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 mb-2">Full Journal Entry</h4>
-              <p className="text-gray-600 italic">{checkpoint.journal}</p>
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">Full Journal Entry</h4>
+              <p className="text-gray-600 dark:text-gray-300 italic">{checkpoint.journal}</p>
             </div>
           </div>
         )}
