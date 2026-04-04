@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useUpload } from "@/app/hooks/useUpload";
-import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-center";
+import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 // Workaround for import issue if needed, but standardizing on lucide-react

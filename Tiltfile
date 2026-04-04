@@ -4,7 +4,7 @@ local_resource(
   'frontend',
   cmd='cd frontend && npm install',
   serve_cmd='cd frontend && npm run dev',
-  deps=['frontend/package.json', 'frontend/package-lock.json'],
+  deps=['frontend/package.json'],
   ignore=['frontend/node_modules', 'frontend/.next']
 )
 

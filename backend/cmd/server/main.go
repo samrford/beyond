@@ -220,5 +220,5 @@ func main() {
 	})
 
 	log.Println("Server starting on :8080")
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", mux))
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }
