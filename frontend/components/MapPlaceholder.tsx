@@ -10,7 +10,7 @@ export default function MapPlaceholder() {
         Map View (Coming Soon)
       </h3>
       <p className="text-gray-500 dark:text-gray-400 max-w-sm">
-        This area is reserved for the interactive map. Once integrated, you'll see all your planned items pinned geographically, adjusting based on which day you select in your itinerary.
+        This area is reserved for the interactive map. Once integrated, you&apos;ll see all your planned items pinned geographically, adjusting based on which day you select in your itinerary.
       </p>
     </div>
   );

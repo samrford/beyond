@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useRef } from "react";
+import Image from "next/image";
 import { Upload, X, Trash2 } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 
@@ -155,10 +156,12 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
           {formData.photos.map((photo, index) => (
             <div key={index} className="relative aspect-video rounded-md overflow-hidden border border-gray-300 dark:border-gray-600">
-              <img 
+              <Image 
                 src={photo} 
                 alt={`Photo ${index + 1}`} 
-                className="object-cover w-full h-full"
+                fill
+                className="object-cover"
+                unoptimized
               />
               <button
                 type="button"

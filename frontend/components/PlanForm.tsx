@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useRef } from "react";
+import Image from "next/image";
 import { Upload, X } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 
@@ -131,10 +132,12 @@ export default function PlanForm({ initialData, onSubmit, onCancel, isLoading }:
         
         {formData.coverPhoto ? (
           <div className="mt-1 relative rounded-md overflow-hidden h-48 w-full border border-gray-300 dark:border-gray-600">
-            <img 
+            <Image 
               src={formData.coverPhoto} 
               alt="Cover Preview" 
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
+              unoptimized
             />
             <button
               type="button"
@@ -173,7 +176,7 @@ export default function PlanForm({ initialData, onSubmit, onCancel, isLoading }:
 
       <div>
         <label htmlFor="summary" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Summary (e.g. "Three days in Rome")
+          Summary (e.g. &quot;Three days in Rome&quot;)
         </label>
         <textarea
           id="summary"

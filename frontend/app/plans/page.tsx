@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -118,13 +119,12 @@ export default function PlansPage() {
               >
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                   {plan.coverPhoto ? (
-                    <img
+                    <Image
                       src={plan.coverPhoto}
                       alt={plan.name}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
+                      fill
+                      className="object-cover"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400">

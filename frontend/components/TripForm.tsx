@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useRef } from "react";
+import Image from "next/image";
 import { Upload, X } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 
@@ -130,10 +131,12 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
         
         {formData.headerPhoto ? (
           <div className="mt-1 relative rounded-md overflow-hidden h-48 w-full border border-gray-300 dark:border-gray-600">
-            <img 
+            <Image 
               src={formData.headerPhoto} 
               alt="Header Preview" 
-              className="object-cover w-full h-full"
+              fill
+              className="object-cover"
+              unoptimized
             />
             <button
               type="button"
