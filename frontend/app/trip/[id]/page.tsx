@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import CheckpointCard from "@/components/CheckpointCard";
@@ -36,18 +37,13 @@ export default function TripPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: "", id: "" });
 
-  useEffect(() => {
-    fetchTrip();
-  }, [params.id]);
-
-  const fetchTrip = async () => {
+  const fetchTrip = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
       if (!response.ok) throw new Error("Failed to fetch trip");
       const data = await response.json();
       console.log("Fetched trip data:", data);
 
-      // Ensure we map the casing if necessary, though the API seems to return Uppercase
       const normalizedTrip: Trip = {
         id: data.id || data.ID,
         name: data.name || data.Name,
@@ -74,7 +70,11 @@ export default function TripPage({ params }: { params: { id: string } }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    fetchTrip();
+  }, [fetchTrip]);
 
   const handleDeleteTrip = () => {
     setDeleteModal({ isOpen: true, type: "trip", id: params.id });
@@ -151,10 +151,12 @@ export default function TripPage({ params }: { params: { id: string } }) {
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header Section */}
       <div className="relative h-64 bg-gray-300 dark:bg-gray-800">
-        <img
+        <Image
           src={getImageUrl(trip.headerPhoto)}
           alt={trip.name}
-          className="w-full h-full object-cover"
+          fill
+          className="object-cover"
+          unoptimized
         />
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 to-transparent h-16" />
       </div>

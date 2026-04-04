@@ -12,7 +12,13 @@ local_resource(
   'backend',
   cmd='cd backend && go build -o bin/server ./cmd/server',
   serve_cmd='cd backend && ./bin/server',
-  env={'DATABASE_URL': 'postgres://beyond:password@localhost:5432/beyond?sslmode=disable'},
+  env={
+    'DATABASE_URL': 'postgres://beyond:password@localhost:5432/beyond?sslmode=disable',
+    'MINIO_ENDPOINT': 'localhost:9000',
+    'MINIO_USER': 'beyond-admin',
+    'MINIO_PASSWORD': 'beyond-password',
+    'MINIO_PUBLIC_URL': 'http://localhost:9000'
+  },
   deps=['backend'],
   ignore=['backend/bin']
 )

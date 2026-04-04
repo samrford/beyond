@@ -5,17 +5,17 @@ import Image from "next/image";
 import { Upload, X } from "lucide-react";
 import { useUpload } from "@/hooks/useUpload";
 
-interface TripData {
+interface PlanData {
   name: string;
   startDate: string;
   endDate: string;
-  headerPhoto: string;
+  coverPhoto: string;
   summary: string;
 }
 
-interface TripFormProps {
-  initialData?: TripData | null;
-  onSubmit: (data: TripData) => Promise<void>;
+interface PlanFormProps {
+  initialData?: PlanData | null;
+  onSubmit: (data: PlanData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
 }
@@ -31,15 +31,15 @@ const formatDateForInput = (dateString?: string) => {
   }
 };
 
-export default function TripForm({ initialData, onSubmit, onCancel, isLoading }: TripFormProps) {
-  const [formData, setFormData] = useState<TripData>({
+export default function PlanForm({ initialData, onSubmit, onCancel, isLoading }: PlanFormProps) {
+  const [formData, setFormData] = useState<PlanData>({
     name: initialData?.name || "",
     startDate: formatDateForInput(initialData?.startDate) || "",
     endDate: formatDateForInput(initialData?.endDate) || "",
-    headerPhoto: initialData?.headerPhoto || "",
+    coverPhoto: initialData?.coverPhoto || "",
     summary: initialData?.summary || "",
   });
-  
+
   const { uploadFile, isUploading } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,9 +49,10 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
 
     const url = await uploadFile(file);
     if (url) {
-      setFormData((prev) => ({ ...prev, headerPhoto: url }));
+      setFormData((prev) => ({ ...prev, coverPhoto: url }));
     }
     
+    // Reset input so the same file can be selected again if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -65,7 +66,6 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    // Ensure dates are parsed to RFC3339 for backend compatibility
     const submissionData = {
       ...formData,
       startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
@@ -79,7 +79,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Trip Name
+          Plan Name
         </label>
         <input
           type="text"
@@ -88,6 +88,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
           required
           value={formData.name}
           onChange={handleChange}
+          autoFocus
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
         />
       </div>
@@ -126,21 +127,21 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
 
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Header Photo
+          Cover Photo
         </label>
         
-        {formData.headerPhoto ? (
+        {formData.coverPhoto ? (
           <div className="mt-1 relative rounded-md overflow-hidden h-48 w-full border border-gray-300 dark:border-gray-600">
             <Image 
-              src={formData.headerPhoto} 
-              alt="Header Preview" 
+              src={formData.coverPhoto} 
+              alt="Cover Preview" 
               fill
               className="object-cover"
               unoptimized
             />
             <button
               type="button"
-              onClick={() => setFormData(prev => ({ ...prev, headerPhoto: "" }))}
+              onClick={() => setFormData(prev => ({ ...prev, coverPhoto: "" }))}
               className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
             >
               <X size={16} />
@@ -149,15 +150,15 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
         ) : (
           <div 
             onClick={() => fileInputRef.current?.click()}
-            className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md cursor-pointer hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+            className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md cursor-pointer hover:border-primary-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
               isUploading ? "opacity-50 pointer-events-none" : ""
             }`}
           >
             <div className="space-y-1 text-center">
               <Upload className="mx-auto h-12 w-12 text-gray-400" />
               <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
-                <span className="relative rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 dark:text-blue-400">
-                  {isUploading ? "Uploading..." : "Upload a photo"}
+                <span className="relative rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500 dark:text-primary-400">
+                  {isUploading ? "Uploading..." : "Upload a file"}
                 </span>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-500">PNG, JPG, GIF up to 10MB</p>
@@ -175,7 +176,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
 
       <div>
         <label htmlFor="summary" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Summary
+          Summary (e.g. &quot;Three days in Rome&quot;)
         </label>
         <textarea
           id="summary"
@@ -202,7 +203,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
           disabled={isLoading}
           className="inline-flex justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50"
         >
-          {isLoading ? "Saving..." : "Save"}
+          {isLoading ? "Saving..." : "Save Plan"}
         </button>
       </div>
     </form>
