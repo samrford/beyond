@@ -89,7 +89,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete }: 
           </div>
         )}
         
-        <p className="text-gray-500 dark:text-gray-400 italic mb-3">"{checkpoint.journal}"</p>
+        <p className="text-gray-500 dark:text-gray-400 italic mb-3">&quot;{checkpoint.journal}&quot;</p>
         
         {/* Expand/Collapse Button */}
         <button
