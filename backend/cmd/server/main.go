@@ -85,9 +85,25 @@ func main() {
 	}
 	defer db.Close()
 
+	// Initialize storage
+	storage, err := data.InitStorage(
+		os.Getenv("MINIO_ENDPOINT"),
+		os.Getenv("MINIO_USER"),
+		os.Getenv("MINIO_PASSWORD"),
+		"beyond-travel",
+		os.Getenv("MINIO_PUBLIC_URL"),
+	)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize storage: %v", err)
+	}
+
 	// Create handlers
 	tripsHandler := handlers.NewTripsHandler(db)
 	checkpointsHandler := handlers.NewCheckpointsHandler(db)
+	plansHandler := handlers.NewPlansHandler(db)
+	planDaysHandler := handlers.NewPlanDaysHandler(db)
+	planItemsHandler := handlers.NewPlanItemsHandler(db)
+	uploadHandler := handlers.NewUploadHandler(storage)
 
 	// Create server with CORS middleware
 	mux := http.NewServeMux()
@@ -123,6 +139,65 @@ func main() {
 			checkpointsHandler.UpdateCheckpoint(w, r)
 		} else if r.Method == "DELETE" {
 			checkpointsHandler.DeleteCheckpoint(w, r)
+		}
+	}))
+
+	mux.HandleFunc("/api/plans", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			plansHandler.ListPlans(w, r)
+		} else if r.Method == "POST" {
+			plansHandler.CreatePlan(w, r)
+		}
+	}))
+
+	mux.HandleFunc("/api/plans/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/plans/")
+		
+		if strings.HasPrefix(path, "days/") {
+			if r.Method == "DELETE" {
+				planDaysHandler.DeletePlanDay(w, r)
+			}
+			return
+		}
+
+		if strings.HasPrefix(path, "items/") {
+			if r.Method == "PUT" {
+				planItemsHandler.UpdatePlanItem(w, r)
+			} else if r.Method == "DELETE" {
+				planItemsHandler.DeletePlanItem(w, r)
+			}
+			return
+		}
+
+		if strings.HasSuffix(path, "/days") && r.Method == "POST" {
+			planDaysHandler.CreatePlanDay(w, r)
+			return
+		}
+		
+		if strings.HasSuffix(path, "/items") && r.Method == "POST" {
+			planItemsHandler.CreatePlanItem(w, r)
+			return
+		}
+
+		if strings.HasSuffix(path, "/convert") && r.Method == "POST" {
+			plansHandler.ConvertPlanToTrip(w, r)
+			return
+		}
+
+		if r.Method == "GET" {
+			plansHandler.GetPlan(w, r)
+		} else if r.Method == "PUT" {
+			plansHandler.UpdatePlan(w, r)
+		} else if r.Method == "DELETE" {
+			plansHandler.DeletePlan(w, r)
+		}
+	}))
+
+	mux.HandleFunc("/api/upload", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			uploadHandler.HandleUpload(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
 

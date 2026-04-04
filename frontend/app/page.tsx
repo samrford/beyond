@@ -10,12 +10,20 @@ export default function Home() {
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 transition-colors">
           Catalog and share your traveling adventures.
         </p>
-        <Link
-          href="/trips"
-          className="inline-block bg-primary-600 text-white dark:bg-primary-500 px-8 py-3 rounded-lg text-lg font-medium hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors shadow-sm hover:shadow-md"
-        >
-          View My Trips
-        </Link>
+        <div className="flex gap-4 justify-center">
+          <Link
+            href="/plans"
+            className="inline-block bg-white text-primary-600 dark:bg-gray-800 dark:text-primary-400 border-2 border-primary-600 dark:border-primary-500 px-8 py-3 rounded-lg text-lg font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors shadow-sm hover:shadow-md"
+          >
+            Plan a Trip
+          </Link>
+          <Link
+            href="/trips"
+            className="inline-block bg-primary-600 text-white dark:bg-primary-500 px-8 py-3 rounded-lg text-lg font-medium hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors shadow-sm hover:shadow-md"
+          >
+            View My Trips
+          </Link>
+        </div>
       </div>
     </main>
   );
