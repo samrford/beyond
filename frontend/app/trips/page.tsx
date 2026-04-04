@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Plus, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 
@@ -114,13 +115,12 @@ export default function TripsPage() {
               className="block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-transparent dark:border-gray-700"
             >
               <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                <img
+                <Image
                   src={trip.headerPhoto}
                   alt={trip.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                  }}
+                  fill
+                  className="object-cover"
+                  unoptimized
                 />
               </div>
 

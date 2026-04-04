@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef } from "react";
+import Image from "next/image";
+import { Upload, X, Trash2 } from "lucide-react";
+import { useUpload } from "@/hooks/useUpload";
 
 interface CheckpointData {
   name: string;
@@ -35,28 +38,47 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     location: initialData?.location || "",
     timestamp: formatDatetimeForInput(initialData?.timestamp) || "",
     description: initialData?.description || "",
-    photos: initialData?.photos ? initialData.photos.join(", ") : "",
+    photos: initialData?.photos || [],
     journal: initialData?.journal || "",
   });
+
+  const { uploadFile, isUploading } = useUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadFile(file);
+    if (url) {
+      setFormData((prev) => ({ 
+        ...prev, 
+        photos: [...prev.photos, url] 
+      }));
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    // Parse photos back to array
-    const photosArray = formData.photos
-      .split(",")
-      .map(p => p.trim())
-      .filter(p => p.length > 0);
-
     const submissionData = {
       ...formData,
       timestamp: formData.timestamp ? new Date(formData.timestamp).toISOString() : new Date().toISOString(),
-      photos: photosArray,
     };
 
     await onSubmit(submissionData);
@@ -127,16 +149,49 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
       </div>
 
       <div>
-        <label htmlFor="photos" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Photos (comma-separated URLs)
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Photos
         </label>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
+          {formData.photos.map((photo, index) => (
+            <div key={index} className="relative aspect-video rounded-md overflow-hidden border border-gray-300 dark:border-gray-600">
+              <Image 
+                src={photo} 
+                alt={`Photo ${index + 1}`} 
+                fill
+                className="object-cover"
+                unoptimized
+              />
+              <button
+                type="button"
+                onClick={() => removePhoto(index)}
+                className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                title="Remove photo"
+              >
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+          
+          <div 
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            className={`aspect-video flex flex-col justify-center items-center border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md cursor-pointer hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+              isUploading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            <Upload size={24} className="text-gray-400 mb-1" />
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {isUploading ? "Uploading..." : "Add Photo"}
+            </span>
+          </div>
+        </div>
         <input
-          type="text"
-          id="photos"
-          name="photos"
-          value={formData.photos}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          className="hidden"
         />
       </div>
 

@@ -232,4 +232,3 @@ func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
 func (h *PlansHandler) ConvertPlanToTrip(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Convert to Trip is not yet implemented", http.StatusNotImplemented)
 }
-

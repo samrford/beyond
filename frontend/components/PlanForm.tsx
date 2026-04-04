@@ -3,7 +3,17 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { useUpload } from "@/app/hooks/useUpload";
-import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-react";
+import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-center";
+import { LucideIcon } from "lucide-react";
+
+// Workaround for import issue if needed, but standardizing on lucide-react
+import { 
+  Upload as UploadIcon, 
+  X as XIcon, 
+  Calendar as CalendarIcon, 
+  MapPin as MapPinIcon, 
+  AlignLeft as AlignLeftIcon 
+} from "lucide-react";
 
 interface PlanFormProps {
   initialData?: any;
@@ -79,7 +89,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
-            <Calendar size={14} /> Start Date
+            <CalendarIcon size={14} /> Start Date
           </label>
           <input
             type="date"
@@ -92,7 +102,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
-            <Calendar size={14} /> End Date
+            <CalendarIcon size={14} /> End Date
           </label>
           <input
             type="date"
@@ -117,18 +127,19 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
                  alt="Preview" 
                  fill
                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                 unoptimized={!previewUrl} // Allow local MinIO images if they aren't configured in next.config yet (though we did configure it)
                />
                <button 
                  type="button" 
                  onClick={() => { setFormData(prev => ({...prev, coverPhoto: ""})) }}
                  className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
                >
-                 <X size={16} />
+                 <XIcon size={16} />
                </button>
              </>
            ) : (
              <>
-               <Upload size={32} className="text-gray-400 group-hover:text-primary-500 transition-colors mb-2" />
+               <UploadIcon size={32} className="text-gray-400 group-hover:text-primary-500 transition-colors mb-2" />
                <p className="text-xs text-gray-500 text-center font-medium px-4">
                  {uploading ? "Uploading..." : "Click or drag to upload a cover photo"}
                </p>
@@ -146,7 +157,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
 
       <div>
         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
-          <AlignLeft size={14} /> Summary
+          <AlignLeftIcon size={14} /> Summary
         </label>
         <textarea
           name="summary"

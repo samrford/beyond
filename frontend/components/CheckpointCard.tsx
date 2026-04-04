@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Pencil, Trash2 } from "lucide-react";
 
 // Get API base URL from environment variable
@@ -76,15 +77,15 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete }: 
         {checkpoint.photos && checkpoint.photos.length > 0 && (
           <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
             {checkpoint.photos.map((photo, i) => (
-              <img
-                key={i}
-                src={getImageUrl(photo)}
-                alt={`${checkpoint.name} ${i + 1}`}
-                className="h-32 w-48 object-cover rounded shadow-sm"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
+              <div key={i} className="relative h-32 w-48 flex-shrink-0">
+                <Image
+                  src={getImageUrl(photo)}
+                  alt={`${checkpoint.name} ${i + 1}`}
+                  fill
+                  className="object-cover rounded shadow-sm"
+                  unoptimized
+                />
+              </div>
             ))}
           </div>
         )}
@@ -121,15 +122,15 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete }: 
               <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">More Photos</h4>
               <div className="grid grid-cols-2 gap-2">
                 {checkpoint.photos.slice(0, 4).map((photo, i) => (
-                  <img
-                    key={i}
-                    src={getImageUrl(photo)}
-                    alt={`${checkpoint.name} additional ${i + 1}`}
-                    className="h-40 w-full object-cover rounded shadow-sm hover:shadow-md transition-shadow"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
+                  <div key={i} className="relative h-40 w-full">
+                    <Image
+                      src={getImageUrl(photo)}
+                      alt={`${checkpoint.name} additional ${i + 1}`}
+                      fill
+                      className="object-cover rounded shadow-sm hover:shadow-md transition-shadow"
+                      unoptimized
+                    />
+                  </div>
                 ))}
               </div>
             </div>

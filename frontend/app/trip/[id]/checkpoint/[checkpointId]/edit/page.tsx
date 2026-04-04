@@ -13,37 +13,37 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    const fetchCheckpoint = async () => {
+      try {
+        // we only have get trip endpoint currently, so fetch trip and find the checkpoint
+        const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
+        if (!response.ok) throw new Error("Failed to fetch trip");
+        const data = await response.json();
+        
+        const checkpoints = data.Checkpoints || data.checkpoints || [];
+        const cp = checkpoints.find((c: any) => (c.ID || c.id) === params.checkpointId);
+        
+        if (!cp) throw new Error("Checkpoint not found");
+
+        setInitialData({
+          name: cp.Name || cp.name,
+          location: cp.Location || cp.location,
+          timestamp: cp.Timestamp || cp.timestamp,
+          description: cp.Description || cp.description,
+          photos: cp.Photos || cp.photos || [],
+          journal: cp.Journal || cp.journal,
+        });
+      } catch (error) {
+        console.error("Error fetching checkpoint:", error);
+        alert("Error loading checkpoint data");
+        router.push(`/trip/${params.id}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCheckpoint();
-  }, [params.id, params.checkpointId]);
-
-  const fetchCheckpoint = async () => {
-    try {
-      // we only have get trip endpoint currently, so fetch trip and find the checkpoint
-      const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch trip");
-      const data = await response.json();
-      
-      const checkpoints = data.Checkpoints || data.checkpoints || [];
-      const cp = checkpoints.find((c: any) => (c.ID || c.id) === params.checkpointId);
-      
-      if (!cp) throw new Error("Checkpoint not found");
-
-      setInitialData({
-        name: cp.Name || cp.name,
-        location: cp.Location || cp.location,
-        timestamp: cp.Timestamp || cp.timestamp,
-        description: cp.Description || cp.description,
-        photos: cp.Photos || cp.photos || [],
-        journal: cp.Journal || cp.journal,
-      });
-    } catch (error) {
-      console.error("Error fetching checkpoint:", error);
-      alert("Error loading checkpoint data");
-      router.push(`/trip/${params.id}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [params.id, params.checkpointId, router]);
 
   const handleSubmit = async (data: any) => {
     setIsSaving(true);

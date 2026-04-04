@@ -37,10 +37,18 @@ func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Verify plan exists
+	var exists bool
+	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1)", planID).Scan(&exists)
+	if err != nil || !exists {
+		http.Error(w, "Plan not found", http.StatusNotFound)
+		return
+	}
+
 	d.ID = uuid.New().String()
 	d.PlanID = planID
 
-	_, err := h.db.Exec(
+	_, err = h.db.Exec(
 		"INSERT INTO plan_days (id, plan_id, date, notes) VALUES ($1, $2, $3, $4)",
 		d.ID, d.PlanID, d.Date, d.Notes,
 	)

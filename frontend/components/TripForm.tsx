@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useRef } from "react";
+import Image from "next/image";
+import { Upload, X } from "lucide-react";
+import { useUpload } from "@/hooks/useUpload";
 
 interface TripData {
   name: string;
@@ -36,6 +39,23 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     headerPhoto: initialData?.headerPhoto || "",
     summary: initialData?.summary || "",
   });
+  
+  const { uploadFile, isUploading } = useUpload();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadFile(file);
+    if (url) {
+      setFormData((prev) => ({ ...prev, headerPhoto: url }));
+    }
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -105,18 +125,52 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
       </div>
 
       <div>
-        <label htmlFor="headerPhoto" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-          Header Photo URL (or /api/image/...)
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Header Photo
         </label>
-        <input
-          type="text"
-          id="headerPhoto"
-          name="headerPhoto"
-          required
-          value={formData.headerPhoto}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-        />
+        
+        {formData.headerPhoto ? (
+          <div className="mt-1 relative rounded-md overflow-hidden h-48 w-full border border-gray-300 dark:border-gray-600">
+            <Image 
+              src={formData.headerPhoto} 
+              alt="Header Preview" 
+              fill
+              className="object-cover"
+              unoptimized
+            />
+            <button
+              type="button"
+              onClick={() => setFormData(prev => ({ ...prev, headerPhoto: "" }))}
+              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ) : (
+          <div 
+            onClick={() => fileInputRef.current?.click()}
+            className={`mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-md cursor-pointer hover:border-blue-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+              isUploading ? "opacity-50 pointer-events-none" : ""
+            }`}
+          >
+            <div className="space-y-1 text-center">
+              <Upload className="mx-auto h-12 w-12 text-gray-400" />
+              <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
+                <span className="relative rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500 dark:text-blue-400">
+                  {isUploading ? "Uploading..." : "Upload a photo"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-500">PNG, JPG, GIF up to 10MB</p>
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+            />
+          </div>
+        )}
       </div>
 
       <div>

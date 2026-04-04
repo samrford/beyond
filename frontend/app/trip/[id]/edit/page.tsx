@@ -13,29 +13,29 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    fetchTrip();
-  }, [params.id]);
+    const fetchTrip = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
+        if (!response.ok) throw new Error("Failed to fetch trip");
+        const data = await response.json();
+        setInitialData({
+          name: data.Name || data.name,
+          startDate: data.StartDate || data.startDate,
+          endDate: data.EndDate || data.endDate,
+          headerPhoto: data.HeaderPhoto || data.headerPhoto,
+          summary: data.Summary || data.summary,
+        });
+      } catch (error) {
+        console.error("Error fetching trip:", error);
+        alert("Error loading trip data");
+        router.push("/trips");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchTrip = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch trip");
-      const data = await response.json();
-      setInitialData({
-        name: data.Name || data.name,
-        startDate: data.StartDate || data.startDate,
-        endDate: data.EndDate || data.endDate,
-        headerPhoto: data.HeaderPhoto || data.headerPhoto,
-        summary: data.Summary || data.summary,
-      });
-    } catch (error) {
-      console.error("Error fetching trip:", error);
-      alert("Error loading trip data");
-      router.push("/trips");
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchTrip();
+  }, [params.id, router]);
 
   const handleSubmit = async (data: any) => {
     setIsSaving(true);
