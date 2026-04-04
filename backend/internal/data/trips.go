@@ -6,24 +6,24 @@ import (
 
 // Trip represents a travel trip with checkpoints
 type Trip struct {
-	ID          string
-	Name        string
-	StartDate   time.Time
-	EndDate     time.Time
-	HeaderPhoto string
-	Summary     string
-	Checkpoints []Checkpoint
+	ID          string       `json:"id"`
+	Name        string       `json:"name"`
+	StartDate   time.Time    `json:"startDate"`
+	EndDate     time.Time    `json:"endDate"`
+	HeaderPhoto string       `json:"headerPhoto"`
+	Summary     string       `json:"summary"`
+	Checkpoints []Checkpoint `json:"checkpoints"`
 }
 
 // Checkpoint represents a checkpoint/event in a trip
 type Checkpoint struct {
-	ID          string
-	Name        string
-	Location    string
-	Timestamp   time.Time
-	Description string
-	Photos      []string
-	Journal     string
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Location    string    `json:"location"`
+	Timestamp   time.Time `json:"timestamp"`
+	Description string    `json:"description"`
+	Photos      []string  `json:"photos"`
+	Journal     string    `json:"journal"`
 }
 
 
