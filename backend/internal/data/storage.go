@@ -10,11 +10,19 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+type FileUploader interface {
+	UploadFile(ctx context.Context, filename string, file multipart.File, size int64, contentType string) (string, error)
+}
+
 type Storage struct {
 	client     *minio.Client
 	bucketName string
 	publicURL  string
 }
+
+// Ensure Storage implements FileUploader
+var _ FileUploader = (*Storage)(nil)
+
 
 func InitStorage(endpoint, accessKey, secretKey, bucketName, publicURL string) (*Storage, error) {
 	client, err := minio.New(endpoint, &minio.Options{
