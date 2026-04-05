@@ -3,6 +3,7 @@
 import { useRouter, useParams } from "next/navigation";
 import PlanForm from "@/components/PlanForm";
 import { usePlan, useUpdatePlan } from "@/lib/queries/plans";
+import toast from "react-hot-toast";
 
 export default function EditPlanPage() {
   const router = useRouter();
@@ -15,11 +16,12 @@ export default function EditPlanPage() {
   const handleSubmit = async (data: any) => {
     try {
       await updatePlan.mutateAsync(data);
+      toast.success("Plan updated!");
       router.push(`/plans/${id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error updating plan");
+      toast.error("Failed to update plan");
     }
   };
 

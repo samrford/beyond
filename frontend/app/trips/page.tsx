@@ -7,6 +7,7 @@ import { Plus, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useTrips, useDeleteTrip } from "@/lib/queries/trips";
 import { getImageUrl } from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function TripsPage() {
   const { data: trips = [], isLoading } = useTrips();
@@ -25,9 +26,10 @@ export default function TripsPage() {
 
     try {
       await deleteTrip.mutateAsync(id);
+      toast.success("Trip deleted successfully");
     } catch (error) {
       console.error(error);
-      alert("Error deleting trip");
+      toast.error("Failed to delete trip");
     }
   };
 

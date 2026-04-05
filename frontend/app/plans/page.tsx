@@ -7,6 +7,7 @@ import { Plus, Calendar, MapPin, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
 import { usePlans, useDeletePlan } from "@/lib/queries/plans";
 import { getImageUrl } from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function PlansPage() {
   const { data: plans = [], isLoading } = usePlans();
@@ -17,9 +18,10 @@ export default function PlansPage() {
     if (!deletingId) return;
     try {
       await deletePlan.mutateAsync(deletingId);
+      toast.success("Plan deleted");
     } catch (error) {
       console.error("Error deleting plan:", error);
-      alert("Failed to delete plan");
+      toast.error("Failed to delete plan");
     } finally {
       setDeletingId(null);
     }

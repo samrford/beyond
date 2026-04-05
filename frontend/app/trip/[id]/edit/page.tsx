@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
 import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
+import toast from "react-hot-toast";
 
 export default function EditTripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -22,11 +23,12 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
   const handleSubmit = async (data: any) => {
     try {
       await updateTrip.mutateAsync(data);
+      toast.success("Trip updated!");
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error updating trip");
+      toast.error("Failed to update trip");
     }
   };
 

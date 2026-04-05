@@ -20,6 +20,7 @@ import {
   type PlanItem,
 } from "@/lib/queries/plans";
 import { apiFetch } from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function PlanDetailPage() {
   const params = useParams();
@@ -56,7 +57,7 @@ export default function PlanDetailPage() {
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error deleting plan");
+      toast.error("Failed to delete plan");
     } finally {
       setIsDeleting(false);
     }
@@ -162,7 +163,7 @@ export default function PlanDetailPage() {
       setEditingItem(null);
     } catch (error) {
       console.error(error);
-      alert("Error saving activity changes.");
+      toast.error("Failed to save changes");
     }
   };
 
@@ -179,7 +180,7 @@ export default function PlanDetailPage() {
       setEditingItem(null);
     } catch (error) {
       console.error(error);
-      alert("Error deleting activity");
+      toast.error("Failed to delete item");
     }
   };
 
@@ -299,7 +300,7 @@ export default function PlanDetailPage() {
       queryClient.invalidateQueries({ queryKey: planKeys.detail(id) });
     } catch (error) {
       console.error(error);
-      alert("Error generating days");
+      toast.error("Failed to generate days");
     } finally {
       setIsGenerating(false);
     }
@@ -312,10 +313,10 @@ export default function PlanDetailPage() {
       router.refresh();
     } catch (error: any) {
       if (error?.status === 501) {
-        alert("Not Yet Implemented: This feature is still in development on the backend.");
+        toast("Feature coming soon!");
       } else {
         console.error(error);
-        alert("Error converting plan to trip");
+        toast.error("Failed to convert plan to trip");
       }
     }
   };

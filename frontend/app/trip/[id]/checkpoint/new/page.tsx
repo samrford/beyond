@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import CheckpointForm from "@/components/CheckpointForm";
 import { useCreateCheckpoint } from "@/lib/queries/trips";
+import toast from "react-hot-toast";
 
 export default function NewCheckpointPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -11,11 +12,12 @@ export default function NewCheckpointPage({ params }: { params: { id: string } }
   const handleSubmit = async (data: any) => {
     try {
       await createCheckpoint.mutateAsync(data);
+      toast.success("Checkpoint added!");
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error creating checkpoint");
+      toast.error("Failed to add checkpoint");
     }
   };
 

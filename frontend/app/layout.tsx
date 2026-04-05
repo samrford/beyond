@@ -3,6 +3,7 @@ import "./globals.css";
 import ThemeClient from "./ThemeClient";
 import Sidebar from "../components/Sidebar";
 import QueryProvider from "@/lib/queries/providers";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "Beyond - Travel Adventures",
@@ -23,6 +24,7 @@ export default function RootLayout({
             {children}
           </div>
         </div>
+        <Toaster position="bottom-right" />
       </QueryProvider>
     </ThemeClient>
   );

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import CheckpointForm from "@/components/CheckpointForm";
 import { useTrip, useUpdateCheckpoint } from "@/lib/queries/trips";
+import toast from "react-hot-toast";
 
 export default function EditCheckpointPage({ params }: { params: { id: string, checkpointId: string } }) {
   const router = useRouter();
@@ -28,11 +29,12 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
         checkpointId: params.checkpointId,
         data,
       });
+      toast.success("Checkpoint updated!");
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error updating checkpoint");
+      toast.error("Failed to update checkpoint");
     }
   };
 

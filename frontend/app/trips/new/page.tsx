@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
 import { useCreateTrip } from "@/lib/queries/trips";
+import toast from "react-hot-toast";
 
 export default function NewTripPage() {
   const router = useRouter();
@@ -11,11 +12,12 @@ export default function NewTripPage() {
   const handleSubmit = async (data: any) => {
     try {
       const created = await createTrip.mutateAsync(data);
+      toast.success("Trip created!");
       router.push(`/trip/${created.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error creating trip");
+      toast.error("Failed to create trip");
     }
   };
 

@@ -9,6 +9,7 @@ import CheckpointCard from "@/components/CheckpointCard";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useTrip, useDeleteTrip, useDeleteCheckpoint } from "@/lib/queries/trips";
 import { getImageUrl } from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -33,13 +34,15 @@ export default function TripPage({ params }: { params: { id: string } }) {
     try {
       if (type === "trip") {
         await deleteTripMutation.mutateAsync(id);
+        toast.success("Trip deleted");
         router.push("/trips");
       } else if (type === "checkpoint") {
         await deleteCheckpointMutation.mutateAsync(id);
+        toast.success("Checkpoint deleted");
       }
     } catch (error) {
       console.error(error);
-      alert(`Error deleting ${type}`);
+      toast.error(`Error deleting ${type}`);
     }
   };
 

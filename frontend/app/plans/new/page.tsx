@@ -5,6 +5,7 @@ import PlanForm from "@/components/PlanForm";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useCreatePlan } from "@/lib/queries/plans";
+import toast from "react-hot-toast";
 
 export default function NewPlanPage() {
   const router = useRouter();
@@ -13,11 +14,12 @@ export default function NewPlanPage() {
   const handleSubmit = async (formData: any) => {
     try {
       const data = await createPlan.mutateAsync(formData);
+      toast.success("Plan created!");
       router.push(`/plans/${data.id}`);
       router.refresh();
     } catch (error) {
       console.error("Error creating plan:", error);
-      alert("Failed to create plan. Please try again.");
+      toast.error("Failed to create plan");
     }
   };
 
