@@ -1,80 +1,21 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import CheckpointCard from "@/components/CheckpointCard";
 import ConfirmModal from "@/components/ConfirmModal";
-
-// Get API base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-
-interface Checkpoint {
-  id: string;
-  name: string;
-  location: string;
-  timestamp: string;
-  description: string;
-  photos: string[];
-  journal: string;
-}
-
-interface Trip {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  headerPhoto: string;
-  summary: string;
-  checkpoints: Checkpoint[] | null;
-}
+import { useTrip, useDeleteTrip, useDeleteCheckpoint } from "@/lib/queries/trips";
+import { getImageUrl } from "@/lib/api";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [trip, setTrip] = useState<Trip | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: trip, isLoading } = useTrip(params.id);
+  const deleteTripMutation = useDeleteTrip();
+  const deleteCheckpointMutation = useDeleteCheckpoint(params.id);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: "", id: "" });
-
-  const fetchTrip = useCallback(async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
-      if (!response.ok) throw new Error("Failed to fetch trip");
-      const data = await response.json();
-      console.log("Fetched trip data:", data);
-
-      const normalizedTrip: Trip = {
-        id: data.id || data.ID,
-        name: data.name || data.Name,
-        startDate: data.startDate || data.StartDate,
-        endDate: data.endDate || data.EndDate,
-        headerPhoto: data.headerPhoto || data.HeaderPhoto,
-        summary: data.summary || data.Summary,
-        checkpoints: (data.checkpoints || data.Checkpoints || []).map((cp: any) => ({
-          id: cp.id || cp.ID,
-          name: cp.name || cp.Name,
-          location: cp.location || cp.Location,
-          timestamp: cp.timestamp || cp.Timestamp,
-          description: cp.description || cp.Description,
-          photos: cp.photos || cp.Photos,
-          journal: cp.journal || cp.Journal,
-        })),
-      };
-
-      setTrip(normalizedTrip);
-
-    } catch (error) {
-      console.error("Error fetching trip:", error);
-      setTrip(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [params.id]);
-
-  useEffect(() => {
-    fetchTrip();
-  }, [fetchTrip]);
 
   const handleDeleteTrip = () => {
     setDeleteModal({ isOpen: true, type: "trip", id: params.id });
@@ -89,34 +30,20 @@ export default function TripPage({ params }: { params: { id: string } }) {
     setDeleteModal({ isOpen: false, type: "", id: "" });
     if (!id) return;
 
-    if (type === "trip") {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/trips/${id}`, { method: "DELETE" });
-        if (response.ok) {
-          router.push("/trips");
-        } else {
-          alert("Failed to delete trip");
-        }
-      } catch (error) {
-        console.error(error);
-        alert("Error deleting trip");
+    try {
+      if (type === "trip") {
+        await deleteTripMutation.mutateAsync(id);
+        router.push("/trips");
+      } else if (type === "checkpoint") {
+        await deleteCheckpointMutation.mutateAsync(id);
       }
-    } else if (type === "checkpoint") {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/checkpoints/${id}`, { method: "DELETE" });
-        if (response.ok) {
-          fetchTrip();
-        } else {
-          alert("Failed to delete checkpoint");
-        }
-      } catch (error) {
-        console.error(error);
-        alert("Error deleting checkpoint");
-      }
+    } catch (error) {
+      console.error(error);
+      alert(`Error deleting ${type}`);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
@@ -138,14 +65,6 @@ export default function TripPage({ params }: { params: { id: string } }) {
       </main>
     );
   }
-
-  // Helper function to get image from backend
-  const getImageUrl = (photoPath: string) => {
-    if (photoPath.startsWith("/api/image")) {
-      return `${API_BASE_URL}${photoPath}`;
-    }
-    return photoPath;
-  };
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900">

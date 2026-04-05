@@ -1,32 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import CheckpointForm from "@/components/CheckpointForm";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { useCreateCheckpoint } from "@/lib/queries/trips";
 
 export default function NewCheckpointPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const createCheckpoint = useCreateCheckpoint(params.id);
 
   const handleSubmit = async (data: any) => {
-    setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}/checkpoints`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error("Failed to create checkpoint");
+      await createCheckpoint.mutateAsync(data);
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
       alert("Error creating checkpoint");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -40,7 +29,7 @@ export default function NewCheckpointPage({ params }: { params: { id: string } }
           <CheckpointForm
             onSubmit={handleSubmit}
             onCancel={() => router.back()}
-            isLoading={isLoading}
+            isLoading={createCheckpoint.isPending}
           />
         </div>
       </div>

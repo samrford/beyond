@@ -1,38 +1,23 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PlanForm from "@/components/PlanForm";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { useCreatePlan } from "@/lib/queries/plans";
 
 export default function NewPlanPage() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const createPlan = useCreatePlan();
 
   const handleSubmit = async (formData: any) => {
-    setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/plans`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) throw new Error("Failed to create plan");
-
-      const data = await response.json();
+      const data = await createPlan.mutateAsync(formData);
       router.push(`/plans/${data.id}`);
       router.refresh();
     } catch (error) {
       console.error("Error creating plan:", error);
       alert("Failed to create plan. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -53,7 +38,7 @@ export default function NewPlanPage() {
             Fill in the details below to start organizing your next great adventure.
           </p>
 
-          <PlanForm onSubmit={handleSubmit} isLoading={loading} />
+          <PlanForm onSubmit={handleSubmit} isLoading={createPlan.isPending} />
         </div>
       </div>
     </main>

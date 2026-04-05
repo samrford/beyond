@@ -4,9 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Pencil, Trash2 } from "lucide-react";
-
-// Get API base URL from environment variable
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { getImageUrl } from "@/lib/api";
 
 interface Checkpoint {
   id: string;
@@ -32,12 +30,6 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete }: 
     setIsExpanded(!isExpanded);
   };
 
-  const getImageUrl = (photoPath: string) => {
-    if (photoPath.startsWith("/api/image")) {
-      return `${API_BASE_URL}${photoPath}`;
-    }
-    return photoPath;
-  };
 
   return (
     <div className="relative pl-8 border-l-2 border-primary-200 dark:border-primary-800">

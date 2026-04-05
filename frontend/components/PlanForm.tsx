@@ -14,8 +14,7 @@ import {
   MapPin as MapPinIcon, 
   AlignLeft as AlignLeftIcon 
 } from "lucide-react";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { getImageUrl } from "@/lib/api";
 
 interface PlanFormProps {
   initialData?: any;
@@ -32,11 +31,6 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     coverPhoto: "",
   });
 
-  const getImageUrl = (photoPath: string) => {
-    if (!photoPath) return "";
-    if (photoPath.startsWith("http") || photoPath.startsWith("blob:")) return photoPath;
-    return `${API_BASE_URL}/api/image/${photoPath}`;
-  };
 
   const { upload, uploading, previewUrl } = useUpload();
 

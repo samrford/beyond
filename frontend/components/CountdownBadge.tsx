@@ -2,42 +2,31 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Compass, Sparkles } from "lucide-react";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { Compass } from "lucide-react";
+import { usePlans } from "@/lib/queries/plans";
 
 export default function CountdownBadge() {
+  const { data: plans, isLoading } = usePlans();
   const [nextPlan, setNextPlan] = useState<{ name: string; startDate: string } | null>(null);
   const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/plans`);
-        if (!response.ok) throw new Error("Failed to fetch plans");
-        const plans = await response.json();
+    if (!plans) return;
 
-        const now = new Date();
-        const futurePlans = plans
-          .filter((plan: any) => new Date(plan.startDate) > now)
-          .sort((a: any, b: any) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+    const now = new Date();
+    const futurePlans = plans
+      .filter((plan) => new Date(plan.startDate) > now)
+      .sort((a, b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
 
-        if (futurePlans.length > 0) {
-          setNextPlan({
-            name: futurePlans[0].name,
-            startDate: futurePlans[0].startDate
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching plans for countdown:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPlans();
-  }, []);
+    if (futurePlans.length > 0) {
+      setNextPlan({
+        name: futurePlans[0].name,
+        startDate: futurePlans[0].startDate,
+      });
+    } else {
+      setNextPlan(null);
+    }
+  }, [plans]);
 
   useEffect(() => {
     if (!nextPlan) return;
@@ -49,7 +38,7 @@ export default function CountdownBadge() {
 
       if (difference <= 0) {
         setTimeLeft(null);
-        setNextPlan(null); // Simple way to refresh or hide
+        setNextPlan(null);
         clearInterval(timer);
         return;
       }

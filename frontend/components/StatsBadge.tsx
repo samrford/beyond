@@ -1,46 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { usePlans } from "@/lib/queries/plans";
+import { useTrips } from "@/lib/queries/trips";
 
 export default function StatsBadge() {
-  const [stats, setStats] = useState({ plans: 0, completedTrips: 0 });
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: plans, isLoading: plansLoading } = usePlans();
+  const { data: trips, isLoading: tripsLoading } = useTrips();
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [plansRes, tripsRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/plans`),
-          fetch(`${API_BASE_URL}/api/trips`)
-        ]);
-
-        if (!plansRes.ok || !tripsRes.ok) throw new Error("Failed to fetch statistics");
-
-        const plans = await plansRes.json();
-        const trips = await tripsRes.json();
-        const now = new Date();
-
-        setStats({
-          plans: plans.length,
-          completedTrips: trips.filter((t: any) => new Date(t.endDate) < now).length
-        });
-      } catch (error) {
-        console.error("Error fetching homepage stats:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchStats();
-  }, []);
+  const isLoading = plansLoading || tripsLoading;
+  const now = new Date();
+  const completedTrips = trips?.filter((t) => new Date(t.endDate) < now).length ?? 0;
 
   return (
     <div className="mt-24 glass p-8 rounded-3xl border-orange-100 dark:border-orange-900/50 flex flex-wrap gap-12 justify-center items-center opacity-80 hover:opacity-100 transition-opacity">
       <div className="flex flex-col items-center gap-2">
         <span className="text-4xl font-black text-gradient">
-          {isLoading ? "..." : stats.plans}
+          {isLoading ? "..." : plans?.length ?? 0}
         </span>
         <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
           Plans
@@ -51,7 +26,7 @@ export default function StatsBadge() {
 
       <div className="flex flex-col items-center gap-2">
         <span className="text-4xl font-black text-gradient">
-          {isLoading ? "..." : stats.completedTrips}
+          {isLoading ? "..." : completedTrips}
         </span>
         <span className="text-xs font-bold uppercase tracking-widest text-gray-500">
           Completed trips

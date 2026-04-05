@@ -3,7 +3,7 @@
 import { useState, FormEvent, useRef } from "react";
 import Image from "next/image";
 import { Upload, X, Trash2 } from "lucide-react";
-import { useUpload } from "@/hooks/useUpload";
+import { useUpload } from "@/app/hooks/useUpload";
 
 interface CheckpointData {
   name: string;
@@ -42,14 +42,14 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     journal: initialData?.journal || "",
   });
 
-  const { uploadFile, isUploading } = useUpload();
+  const { upload, uploading: isUploading } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const url = await uploadFile(file);
+    const url = await upload(file);
     if (url) {
       setFormData((prev) => ({ 
         ...prev, 
