@@ -58,13 +58,55 @@ We use **PostgreSQL** for storage. Migrations in `backend/internal/data/migratio
 
 ---
 
+## 🔐 Authentication (Supabase)
+
+The backend uses **Supabase** for secure authentication. 
+
+- **JWT Verification**: The backend dynamically fetches Supabase's Public Keys (JWKS) via OIDC discovery.
+- **Required Header**: All protected endpoints require a `Bearer` token in the `Authorization` header.
+  - `Authorization: Bearer <your-supabase-jwt>`
+- **User Scoping**: The `sub` claim (User ID) from the JWT is used to scope all database queries, ensuring users only access their own data.
+
+---
+
 ## 🔌 API Endpoints
-- `GET    /api/trips` - List all trips
+
+### 🗺 Trips (Legacy/Simple)
+- `GET    /api/trips` - List all user trips
 - `POST   /api/trips` - Create a new trip
 - `GET    /api/trips/{id}` - Get a specific trip and its checkpoints
 - `PUT    /api/trips/{id}` - Update a specific trip
 - `DELETE /api/trips/{id}` - Delete a specific trip
 - `POST   /api/trips/{id}/checkpoints` - Add a checkpoint to a trip
+
+### 📍 Checkpoints
 - `PUT    /api/checkpoints/{id}` - Update a checkpoint
 - `DELETE /api/checkpoints/{id}` - Delete a checkpoint
-- `GET    /api/image/{id}` - Generate placeholder SVG images (temp dev helper)
+
+### 📝 Plans
+- `GET    /api/plans` - List all user planning sessions
+- `POST   /api/plans` - Create a new planning session
+- `GET    /api/plans/{id}` - Get plan details (including days and items)
+- `PUT    /api/plans/{id}` - Update plan metadata
+- `DELETE /api/plans/{id}` - Delete a plan
+- `POST   /api/plans/{id}/days` - Add a new day to a plan
+- `DELETE /api/plans/days/{id}` - Remove a day from a plan
+- `POST   /api/plans/{id}/items` - Add an item (activity/flight/etc) to a plan day
+- `PUT    /api/plans/items/{id}` - Update a plan item
+- `DELETE /api/plans/items/{id}` - Remove a plan item
+- `POST   /api/plans/{id}/convert` - **Finalize!** Convert a plan into a real Trip
+
+### ☁️ Storage & Helpers
+- `POST   /api/upload` - Upload an image (Multipart Form, returns S3/MinIO URL)
+- `GET    /api/image/{id}` - Placeholder SVG generator (Public)
+
+---
+
+## ⚙️ Environment Variables
+
+The backend requires the following variables (provided by Tilt in dev):
+- `DATABASE_URL`: Connection string for PostgreSQL.
+- `SUPABASE_URL`: Your Supabase Project URL (for OIDC discovery).
+- `MINIO_ENDPOINT`: MinIO server for file storage.
+- `MINIO_USER` / `MINIO_PASSWORD`: MinIO credentials.
+- `MINIO_PUBLIC_URL`: Public-facing URL for serving uploaded images.
