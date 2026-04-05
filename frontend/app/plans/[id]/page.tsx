@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import MapPlaceholder from "@/components/MapPlaceholder";
+import InteractiveMap from "@/components/InteractiveMap";
 import PlanItemModal from "@/components/PlanItemModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import {
@@ -44,13 +44,17 @@ export default function PlanDetailPage() {
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
 
   // Sync fetched plan to local state
   useEffect(() => {
     if (fetchedPlan) {
       setPlan(fetchedPlan);
+      if (fetchedPlan.days && fetchedPlan.days.length > 0 && !selectedDayId) {
+        setSelectedDayId(fetchedPlan.days[0].id);
+      }
     }
-  }, [fetchedPlan]);
+  }, [fetchedPlan, selectedDayId]);
 
   const handleDeletePlan = async () => {
     try {
@@ -451,9 +455,22 @@ export default function PlanDetailPage() {
                 plan.days.map((day: any, i: number) => (
                   <div key={day.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
                     <div className="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                      <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-                        Day {i + 1} - {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </h3>
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                          Day {i + 1} - {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </h3>
+                        <button
+                          onClick={() => setSelectedDayId(day.id)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors ${
+                            selectedDayId === day.id
+                              ? "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 ring-1 ring-primary-500/50"
+                              : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"
+                          }`}
+                        >
+                          <MapPin size={12} />
+                          {selectedDayId === day.id ? "Viewing Map" : "View on Map"}
+                        </button>
+                      </div>
                       {day.notes && <span className="text-xs text-gray-500 truncate max-w-[200px]">{day.notes}</span>}
                     </div>
                     <div
@@ -559,9 +576,9 @@ export default function PlanDetailPage() {
           </div>
         </div>
 
-        {/* Right Side: Map Placeholder */}
-        <div className="flex-1 bg-gray-100 dark:bg-gray-900 p-6 relative">
-          <MapPlaceholder />
+        {/* Right Side: Interactive Map */}
+        <div className="flex-1 bg-white dark:bg-gray-900 p-6 relative">
+          <InteractiveMap plan={plan} selectedDayId={selectedDayId} selectedItemId={editingItem?.id || null} />
         </div>
 
       </div>
