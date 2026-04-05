@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -182,4 +184,117 @@ func TestDeletePlan(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestConvertPlanToTrip(t *testing.T) {
+	db, _, _ := sqlmock.New()
+	defer db.Close()
+
+	h := NewPlansHandler(db)
+
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/1/convert", nil))
+	rr := httptest.NewRecorder()
+	h.ConvertPlanToTrip(rr, req)
+
+	assert.Equal(t, http.StatusNotImplemented, rr.Code)
+}
+
+func TestGetPlan_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlansHandler(db)
+
+	mock.ExpectQuery("SELECT .* FROM plans WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
+		WillReturnError(sql.ErrNoRows)
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetPlan(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestListPlans_DBError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlansHandler(db)
+
+	mock.ExpectQuery("SELECT .* FROM plans").WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans", nil))
+	rr := httptest.NewRecorder()
+	h.ListPlans(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestGetPlan_DaysError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlansHandler(db)
+
+	now := time.Now()
+	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at"}).AddRow("1", "P1", now, now, "S1", "C1", now, now))
+	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetPlan(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestGetPlan_ItemsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlansHandler(db)
+
+	now := time.Now()
+	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at"}).AddRow("1", "P1", now, now, "S1", "C1", now, now))
+	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnRows(sqlmock.NewRows([]string{"id", "date", "notes"}))
+	mock.ExpectQuery("SELECT .* FROM plan_items").WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetPlan(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestGetPlan_UnassignedAndFallback(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlansHandler(db)
+
+	now := time.Now()
+	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at"}).AddRow("1", "P1", now, now, "S1", "C1", now, now))
+	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnRows(sqlmock.NewRows([]string{"id", "date", "notes"}).AddRow("d1", now, "N1"))
+	
+	// i1 is unassigned (PlanDayID is null)
+	// i2 has invalid day ID (PlanDayID is "d2" but only "d1" exists)
+	itemRows := sqlmock.NewRows([]string{"id", "plan_day_id", "name", "description", "location", "latitude", "longitude", "order_index", "estimated_time", "start_time", "duration"}).
+		AddRow("i1", nil, "Item 1", "D1", "L1", 1.0, 2.0, 0, "1h", "10:00", 60).
+		AddRow("i2", "d2", "Item 2", "D2", "L2", 3.0, 4.0, 1, "1h", "11:00", 60)
+
+	mock.ExpectQuery("SELECT .* FROM plan_items").WillReturnRows(itemRows)
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetPlan(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+	var p data.Plan
+	json.NewDecoder(rr.Body).Decode(&p)
+	assert.Len(t, p.Unassigned, 2) // Both i1 and i2 (fallback) should be in Unassigned
 }

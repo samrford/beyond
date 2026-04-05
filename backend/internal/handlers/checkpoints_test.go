@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -128,4 +129,75 @@ func TestDeleteCheckpoint(t *testing.T) {
 	assert.Empty(t, rr.Body.String())
 
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestCheckpoint_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewCheckpointsHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/checkpoints/none", nil))
+	rr := httptest.NewRecorder()
+	h.DeleteCheckpoint(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestCreateCheckpoint_TripNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewCheckpointsHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips/none/checkpoints", bytes.NewBuffer([]byte(`{}`))))
+	rr := httptest.NewRecorder()
+	h.CreateCheckpoint(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestCheckpoint_DBError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewCheckpointsHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	mock.ExpectExec("DELETE").WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/checkpoints/cp-1", nil))
+	rr := httptest.NewRecorder()
+	h.DeleteCheckpoint(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestCreateCheckpoint_InvalidJSON(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	h := NewCheckpointsHandler(db)
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips/1/checkpoints", bytes.NewBuffer([]byte(`{invalid`))))
+	rr := httptest.NewRecorder()
+	h.CreateCheckpoint(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestUpdateCheckpoint_InvalidJSON(t *testing.T) {
+	db, mock, _ := sqlmock.New()
+	defer db.Close()
+	h := NewCheckpointsHandler(db)
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/api/checkpoints/1", bytes.NewBuffer([]byte(`{invalid`))))
+	rr := httptest.NewRecorder()
+	h.UpdateCheckpoint(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
 }

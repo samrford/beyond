@@ -74,3 +74,50 @@ func TestDeletePlanDay(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestUpdatePlanDay(t *testing.T) {
+	db, _, _ := sqlmock.New()
+	defer db.Close()
+
+	h := NewPlanDaysHandler(db)
+
+	req := reqWithAuth(httptest.NewRequest("PUT", "/api/plans/days/1", nil))
+	rr := httptest.NewRecorder()
+	h.UpdatePlanDay(rr, req)
+
+	assert.Equal(t, http.StatusNotImplemented, rr.Code)
+}
+
+func TestCreatePlanDay_PlanNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlanDaysHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plans WHERE id = \\$1 AND user_id = \\$2\\)").
+		WithArgs("plan-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/days", bytes.NewBuffer([]byte(`{}`))))
+	rr := httptest.NewRecorder()
+	h.CreatePlanDay(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestDeletePlanDay_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlanDaysHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/days/none", nil))
+	rr := httptest.NewRecorder()
+	h.DeletePlanDay(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}

@@ -34,8 +34,14 @@ func InitAuth(ctx context.Context, supabaseURL string) (*oidc.IDTokenVerifier, e
 	return verifier, nil
 }
 
+// IDTokenVerifier defines the interface for verifying ID tokens.
+// This allows for mocking the verifier in tests.
+type IDTokenVerifier interface {
+	Verify(ctx context.Context, rawIDToken string) (*oidc.IDToken, error)
+}
+
 // AuthMiddleware verifies the Supabase JWT using go-oidc and stores the user ID in context.
-func AuthMiddleware(verifier *oidc.IDTokenVerifier, next http.HandlerFunc) http.HandlerFunc {
+func AuthMiddleware(verifier IDTokenVerifier, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Extract Bearer token
 		authHeader := r.Header.Get("Authorization")

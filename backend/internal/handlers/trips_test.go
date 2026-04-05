@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -193,4 +195,94 @@ func TestDeleteTrip(t *testing.T) {
 	assert.Empty(t, rr.Body.String())
 
 	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestGetTrip_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
+		WillReturnError(sql.ErrNoRows)
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetTrip(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestGetTrip_CheckpointsError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	now := time.Now()
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1")
+
+	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
+		WillReturnRows(tripRows)
+
+	mock.ExpectQuery("SELECT .* FROM checkpoints WHERE trip_id = \\$1").
+		WithArgs("1").
+		WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetTrip(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestCreateTrip_InvalidJSON(t *testing.T) {
+	db, _, _ := sqlmock.New()
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer([]byte(`{invalid`))))
+	rr := httptest.NewRecorder()
+	h.CreateTrip(rr, req)
+
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestCreateTrip_DBError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	mock.ExpectExec("INSERT INTO trips").
+		WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer([]byte(`{"name":"test"}`))))
+	rr := httptest.NewRecorder()
+	h.CreateTrip(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestListTrips_DBError(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	mock.ExpectQuery("SELECT .* FROM trips").WillReturnError(errors.New("db error"))
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips", nil))
+	rr := httptest.NewRecorder()
+	h.ListTrips(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 }

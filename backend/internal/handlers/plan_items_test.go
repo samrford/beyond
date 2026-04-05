@@ -113,3 +113,37 @@ func TestDeletePlanItem(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, rr.Code)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestCreatePlanItem_PlanNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlanItemsHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plans WHERE id = \\$1 AND user_id = \\$2\\)").
+		WithArgs("plan-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/items", bytes.NewBuffer([]byte(`{}`))))
+	rr := httptest.NewRecorder()
+	h.CreatePlanItem(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestDeletePlanItem_NotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewPlanItemsHandler(db)
+
+	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
+
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/items/none", nil))
+	rr := httptest.NewRecorder()
+	h.DeletePlanItem(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
