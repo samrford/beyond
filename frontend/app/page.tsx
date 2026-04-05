@@ -21,7 +21,7 @@ export default function Home() {
             href="/trips"
             className="inline-block bg-primary-600 text-white dark:bg-primary-500 px-8 py-3 rounded-lg text-lg font-medium hover:bg-primary-700 dark:hover:bg-primary-400 transition-colors shadow-sm hover:shadow-md"
           >
-            View Past Trips
+            View My Trips
           </Link>
         </div>
       </div>

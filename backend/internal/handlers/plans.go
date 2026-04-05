@@ -96,7 +96,7 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Fetch PlanItems
-	iRows, err := h.db.Query("SELECT id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time FROM plan_items WHERE plan_id = $1 ORDER BY order_index ASC", id)
+	iRows, err := h.db.Query("SELECT id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time, start_time, duration FROM plan_items WHERE plan_id = $1 ORDER BY order_index ASC", id)
 	if err != nil {
 		log.Printf("Error querying plan items: %v", err)
 		http.Error(w, "Failed to load plan items", http.StatusInternalServerError)
@@ -113,8 +113,9 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 		var dayID sql.NullString
 		var lat sql.NullFloat64
 		var lon sql.NullFloat64
+		var startTime sql.NullString
 		
-		if err := iRows.Scan(&i.ID, &dayID, &i.Name, &i.Description, &i.Location, &lat, &lon, &i.OrderIndex, &i.EstimatedTime); err != nil {
+		if err := iRows.Scan(&i.ID, &dayID, &i.Name, &i.Description, &i.Location, &lat, &lon, &i.OrderIndex, &i.EstimatedTime, &startTime, &i.Duration); err != nil {
 			log.Printf("Error scanning plan item: %v", err)
 			continue
 		}
@@ -130,6 +131,10 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 		if lon.Valid {
 			val := lon.Float64
 			i.Longitude = &val
+		}
+		if startTime.Valid {
+			str := startTime.String
+			i.StartTime = &str
 		}
 
 		// Categorize item
@@ -227,4 +232,3 @@ func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
 func (h *PlansHandler) ConvertPlanToTrip(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Convert to Trip is not yet implemented", http.StatusNotImplemented)
 }
-

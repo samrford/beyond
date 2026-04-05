@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -18,8 +19,8 @@ type MockStorage struct {
 	mock.Mock
 }
 
-func (m *MockStorage) UploadFile(ctx context.Context, filename string, file multipart.File, size int64, contentType string) (string, error) {
-	args := m.Called(ctx, filename, file, size, contentType)
+func (m *MockStorage) UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error) {
+	args := m.Called(ctx, filename, reader, size, contentType)
 	return args.String(0), args.Error(1)
 }
 

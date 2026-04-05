@@ -193,9 +193,6 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/image/", imageHandler)
-	mux.HandleFunc("/api/image", imageHandler)
-
 	mux.HandleFunc("/api/upload", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			uploadHandler.HandleUpload(w, r)
@@ -203,6 +200,9 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+
+	mux.HandleFunc("/api/image/", imageHandler)
+	mux.HandleFunc("/api/image", imageHandler)
 
 	// Enable CORS for development - catch-all route
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -220,5 +220,5 @@ func main() {
 	})
 
 	log.Println("Server starting on :8080")
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", mux))
+	log.Fatal(http.ListenAndServe(":8080", mux))
 }

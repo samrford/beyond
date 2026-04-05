@@ -22,36 +22,32 @@ func NewUploadHandler(storage data.FileUploader) *UploadHandler {
 }
 
 func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
-	// 1. Max 10MB
-	err := r.ParseMultipartForm(10 << 20)
-	if err != nil {
-		log.Printf("ParseMultipartForm error: %v", err)
-		http.Error(w, "File too large or invalid", http.StatusBadRequest)
+	if h.storage == nil {
+		http.Error(w, "Storage not configured", http.StatusInternalServerError)
 		return
 	}
 
+	// Limit upload size to 10MB
+	r.ParseMultipartForm(10 << 20)
+
 	file, header, err := r.FormFile("file")
 	if err != nil {
-		log.Printf("FormFile error: %v", err)
-		http.Error(w, "Failed to get file from form", http.StatusBadRequest)
+		http.Error(w, "Failed to get file from request", http.StatusBadRequest)
 		return
 	}
 	defer file.Close()
 
-	// 2. Generate unique filename
+	// Generate unique filename
 	ext := filepath.Ext(header.Filename)
-	uniqueFilename := uuid.New().String() + ext
-	
-	// 3. Upload
-	url, err := h.storage.UploadFile(r.Context(), uniqueFilename, file, header.Size, header.Header.Get("Content-Type"))
+	filename := uuid.New().String() + ext
+
+	url, err := h.storage.UploadFile(r.Context(), filename, file, header.Size, header.Header.Get("Content-Type"))
 	if err != nil {
-		log.Printf("UploadFile error: %v", err)
-		http.Error(w, "Failed to upload file to storage", http.StatusInternalServerError)
+		log.Printf("Error uploading to storage: %v", err)
+		http.Error(w, "Failed to upload file", http.StatusInternalServerError)
 		return
 	}
 
-	// 4. Return URL
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"url": url,
 	})

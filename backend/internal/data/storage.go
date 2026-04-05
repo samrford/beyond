@@ -3,81 +3,74 @@ package data
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
-	"mime/multipart"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type FileUploader interface {
-	UploadFile(ctx context.Context, filename string, file multipart.File, size int64, contentType string) (string, error)
+	UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error)
 }
 
 type Storage struct {
-	client     *minio.Client
-	bucketName string
-	publicURL  string
+	client    *minio.Client
+	bucket    string
+	publicURL string
 }
 
-// Ensure Storage implements FileUploader
-var _ FileUploader = (*Storage)(nil)
+func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, error) {
+	if endpoint == "" {
+		return nil, fmt.Errorf("MINIO_ENDPOINT is required")
+	}
 
-
-func InitStorage(endpoint, accessKey, secretKey, bucketName, publicURL string) (*Storage, error) {
 	client, err := minio.New(endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure: false, // Set to true for HTTPS
+		Creds:  credentials.NewStaticV4(user, password, ""),
+		Secure: false, // Set to true if using TLS
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create minio client: %v", err)
+		return nil, err
 	}
 
-	// Create bucket if it doesn't exist
+	// Ensure bucket exists
 	ctx := context.Background()
-	exists, err := client.BucketExists(ctx, bucketName)
+	exists, err := client.BucketExists(ctx, bucket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check bucket existence: %v", err)
+		return nil, err
 	}
-
 	if !exists {
-		err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create bucket: %v", err)
+			return nil, err
 		}
 
-		// Set bucket policy to allow public read access for uploaded files
-		policy := fmt.Sprintf(`{
-			"Version": "2012-10-17",
-			"Statement": [
-				{
-					"Effect": "Allow",
-					"Principal": "*",
-					"Action": ["s3:GetObject"],
-					"Resource": ["arn:aws:s3:::%s/*"]
-				}
-			]
-		}`, bucketName)
-		err = client.SetBucketPolicy(ctx, bucketName, policy)
+		// Set public read policy
+		policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::%s/*"]}]}`, bucket, bucket)
+		err = client.SetBucketPolicy(ctx, bucket, policy)
 		if err != nil {
-			log.Printf("Warning: failed to set bucket policy: %v", err)
+			log.Printf("Warning: Failed to set bucket policy: %v", err)
 		}
 	}
 
 	return &Storage{
-		client:     client,
-		bucketName: bucketName,
-		publicURL:  publicURL,
+		client:    client,
+		bucket:    bucket,
+		publicURL: publicURL,
 	}, nil
 }
 
-func (s *Storage) UploadFile(ctx context.Context, filename string, file multipart.File, size int64, contentType string) (string, error) {
-	_, err := s.client.PutObject(ctx, s.bucketName, filename, file, size, minio.PutObjectOptions{
+func (s *Storage) UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error) {
+	_, err := s.client.PutObject(ctx, s.bucket, filename, reader, size, minio.PutObjectOptions{
 		ContentType: contentType,
 	})
 	if err != nil {
-		return "", fmt.Errorf("failed to upload object: %v", err)
+		return "", err
 	}
 
-	return fmt.Sprintf("%s/%s/%s", s.publicURL, s.bucketName, filename), nil
+	if s.publicURL != "" {
+		return fmt.Sprintf("%s/%s/%s", s.publicURL, s.bucket, filename), nil
+	}
+
+	return filename, nil
 }

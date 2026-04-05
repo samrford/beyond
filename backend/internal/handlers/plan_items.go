@@ -49,8 +49,8 @@ func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request
 	i.PlanID = planID
 
 	_, err = h.db.Exec(
-		"INSERT INTO plan_items (id, plan_id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
-		i.ID, i.PlanID, i.PlanDayID, i.Name, i.Description, i.Location, i.Latitude, i.Longitude, i.OrderIndex, i.EstimatedTime,
+		"INSERT INTO plan_items (id, plan_id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time, start_time, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+		i.ID, i.PlanID, i.PlanDayID, i.Name, i.Description, i.Location, i.Latitude, i.Longitude, i.OrderIndex, i.EstimatedTime, i.StartTime, i.Duration,
 	)
 	if err != nil {
 		log.Printf("Error inserting plan item: %v", err)
@@ -73,8 +73,8 @@ func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request
 	}
 
 	_, err := h.db.Exec(
-		"UPDATE plan_items SET plan_day_id = $1, name = $2, description = $3, location = $4, latitude = $5, longitude = $6, order_index = $7, estimated_time = $8 WHERE id = $9",
-		i.PlanDayID, i.Name, i.Description, i.Location, i.Latitude, i.Longitude, i.OrderIndex, i.EstimatedTime, id,
+		"UPDATE plan_items SET plan_day_id = $1, name = $2, description = $3, location = $4, latitude = $5, longitude = $6, order_index = $7, estimated_time = $8, start_time = $9, duration = $10 WHERE id = $11",
+		i.PlanDayID, i.Name, i.Description, i.Location, i.Latitude, i.Longitude, i.OrderIndex, i.EstimatedTime, i.StartTime, i.Duration, id,
 	)
 	if err != nil {
 		log.Printf("Error updating plan item: %v", err)

@@ -37,6 +37,8 @@ type PlanItem struct {
 	Location      string  `json:"location"`
 	Latitude      *float64 `json:"latitude"`
 	Longitude     *float64 `json:"longitude"`
-	OrderIndex    int     `json:"orderIndex"`
-	EstimatedTime string  `json:"estimatedTime"`
+	OrderIndex    int      `json:"orderIndex"`
+	EstimatedTime string   `json:"estimatedTime"`
+	StartTime     *string  `json:"startTime"` // TIME in Postgres maps to hh:mm:ss string
+	Duration      int      `json:"duration"`  // Minutes
 }

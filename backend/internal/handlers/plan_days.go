@@ -62,6 +62,12 @@ func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(d)
 }
 
+// UpdatePlanDay handles PUT /api/plans/days/:id (optional, maybe not needed yet)
+func (h *PlanDaysHandler) UpdatePlanDay(w http.ResponseWriter, r *http.Request) {
+	// Not implemented yet
+	http.Error(w, "Not implemented", http.StatusNotImplemented)
+}
+
 // DeletePlanDay handles DELETE /api/plans/days/:id
 func (h *PlanDaysHandler) DeletePlanDay(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/days/")
