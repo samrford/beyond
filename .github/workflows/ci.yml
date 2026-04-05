@@ -35,6 +35,9 @@ jobs:
     - name: Run Tests
       run: go test -v ./...
 
+    - name: Codecov
+      uses: codecov/codecov-action@v6.0.0
+
   frontend-build-and-lint:
     runs-on: ubuntu-latest
     
