@@ -26,13 +26,20 @@ func NewCheckpointsHandler(db *sql.DB) *CheckpointsHandler {
 
 // CreateCheckpoint handles POST /api/trips/:id/checkpoints
 func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Request) {
-	// Extract trip ID from URL path: /api/trips/{trip_id}/checkpoints
+	userID := GetUserID(r.Context())
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 	tripID := parts[3]
+
+	// Verify trip belongs to user
+	var exists bool
+	if err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM trips WHERE id = $1 AND user_id = $2)", tripID, userID).Scan(&exists); err != nil || !exists {
+		http.Error(w, "Trip not found", http.StatusNotFound)
+		return
+	}
 
 	var c data.Checkpoint
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
@@ -59,7 +66,18 @@ func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Req
 
 // UpdateCheckpoint handles PUT /api/checkpoints/:id
 func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/checkpoints/")
+
+	// Verify checkpoint belongs to a trip owned by this user
+	var exists bool
+	if err := h.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM checkpoints c JOIN trips t ON c.trip_id = t.id WHERE c.id = $1 AND t.user_id = $2)",
+		id, userID,
+	).Scan(&exists); err != nil || !exists {
+		http.Error(w, "Checkpoint not found", http.StatusNotFound)
+		return
+	}
 
 	var c data.Checkpoint
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
@@ -85,7 +103,18 @@ func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Req
 
 // DeleteCheckpoint handles DELETE /api/checkpoints/:id
 func (h *CheckpointsHandler) DeleteCheckpoint(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/checkpoints/")
+
+	// Verify checkpoint belongs to a trip owned by this user
+	var exists bool
+	if err := h.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM checkpoints c JOIN trips t ON c.trip_id = t.id WHERE c.id = $1 AND t.user_id = $2)",
+		id, userID,
+	).Scan(&exists); err != nil || !exists {
+		http.Error(w, "Checkpoint not found", http.StatusNotFound)
+		return
+	}
 
 	_, err := h.db.Exec("DELETE FROM checkpoints WHERE id = $1", id)
 	if err != nil {

@@ -37,9 +37,10 @@ func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Verify plan exists
+	// Verify plan belongs to user
+	userID := GetUserID(r.Context())
 	var exists bool
-	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1)", planID).Scan(&exists)
+	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1 AND user_id = $2)", planID, userID).Scan(&exists)
 	if err != nil || !exists {
 		http.Error(w, "Plan not found", http.StatusNotFound)
 		return
@@ -70,7 +71,18 @@ func (h *PlanDaysHandler) UpdatePlanDay(w http.ResponseWriter, r *http.Request) 
 
 // DeletePlanDay handles DELETE /api/plans/days/:id
 func (h *PlanDaysHandler) DeletePlanDay(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/days/")
+
+	// Verify plan day belongs to a plan owned by this user
+	var exists bool
+	if err := h.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM plan_days d JOIN plans p ON d.plan_id = p.id WHERE d.id = $1 AND p.user_id = $2)",
+		id, userID,
+	).Scan(&exists); err != nil || !exists {
+		http.Error(w, "Plan day not found", http.StatusNotFound)
+		return
+	}
 
 	_, err := h.db.Exec("DELETE FROM plan_days WHERE id = $1", id)
 	if err != nil {

@@ -17,7 +17,8 @@ local_resource(
     'MINIO_ENDPOINT': 'localhost:9000',
     'MINIO_USER': 'beyond-admin',
     'MINIO_PASSWORD': 'beyond-password',
-    'MINIO_PUBLIC_URL': 'http://localhost:9000'
+    'MINIO_PUBLIC_URL': 'http://localhost:9000',
+    'SUPABASE_URL': 'https://zzoxjjkljxbaycmubwog.supabase.co'
   },
   deps=['backend'],
   ignore=['backend/bin']

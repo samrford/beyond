@@ -26,10 +26,11 @@ func TestListTrips(t *testing.T) {
 		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1").
 		AddRow("2", "Trip 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "photo2.jpg", "Summary 2")
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary FROM trips ORDER BY start_date ASC").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE user_id = \\$1 ORDER BY start_date ASC").
+		WithArgs(testUserID).
 		WillReturnRows(rows)
 
-	req := httptest.NewRequest("GET", "/api/trips", nil)
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips", nil))
 	rr := httptest.NewRecorder()
 	h.ListTrips(rr, req)
 
@@ -63,8 +64,8 @@ func TestGetTrip(t *testing.T) {
 	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary"}).
 		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1")
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE id = \\$1").
-		WithArgs("1").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
 		WillReturnRows(tripRows)
 
 	checkpointRows := sqlmock.NewRows([]string{"id", "name", "location", "timestamp", "description", "photos", "journal"}).
@@ -75,7 +76,7 @@ func TestGetTrip(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(checkpointRows)
 
-	req := httptest.NewRequest("GET", "/api/trips/1", nil)
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetTrip(rr, req)
 
@@ -116,10 +117,10 @@ func TestCreateTrip(t *testing.T) {
 	body, _ := json.Marshal(newTrip)
 
 	mock.ExpectExec("INSERT INTO trips").
-		WithArgs(sqlmock.AnyArg(), newTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newTrip.HeaderPhoto, newTrip.Summary).
+		WithArgs(sqlmock.AnyArg(), newTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newTrip.HeaderPhoto, newTrip.Summary, testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreateTrip(rr, req)
 
@@ -152,11 +153,11 @@ func TestUpdateTrip(t *testing.T) {
 	}
 	body, _ := json.Marshal(updatedTrip)
 
-	mock.ExpectExec("UPDATE trips SET name = \\$1, start_date = \\$2, end_date = \\$3, header_photo = \\$4, summary = \\$5 WHERE id = \\$6").
-		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, "1").
+	mock.ExpectExec("UPDATE trips SET name = \\$1, start_date = \\$2, end_date = \\$3, header_photo = \\$4, summary = \\$5 WHERE id = \\$6 AND user_id = \\$7").
+		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, "1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("PUT", "/api/trips/1", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/api/trips/1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdateTrip(rr, req)
 
@@ -180,11 +181,11 @@ func TestDeleteTrip(t *testing.T) {
 
 	h := NewTripsHandler(db)
 
-	mock.ExpectExec("DELETE FROM trips WHERE id = \\$1").
-		WithArgs("1").
+	mock.ExpectExec("DELETE FROM trips WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("DELETE", "/api/trips/1", nil)
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/trips/1", nil))
 	rr := httptest.NewRecorder()
 	h.DeleteTrip(rr, req)
 

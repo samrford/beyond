@@ -28,15 +28,15 @@ func TestCreatePlanItem(t *testing.T) {
 	}
 	body, _ := json.Marshal(newItem)
 
-	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plans WHERE id = \\$1\\)").
-		WithArgs("plan-1").
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plans WHERE id = \\$1 AND user_id = \\$2\\)").
+		WithArgs("plan-1", testUserID).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 	mock.ExpectExec("INSERT INTO plan_items").
 		WithArgs(sqlmock.AnyArg(), "plan-1", sqlmock.AnyArg(), newItem.Name, newItem.Description, newItem.Location, sqlmock.AnyArg(), sqlmock.AnyArg(), newItem.OrderIndex, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("POST", "/api/plans/plan-1/items", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/items", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreatePlanItem(rr, req)
 
@@ -66,11 +66,16 @@ func TestUpdatePlanItem(t *testing.T) {
 	}
 	body, _ := json.Marshal(updatedItem)
 
+	// Expect ownership check
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plan_items i JOIN plans p ON i.plan_id = p.id WHERE i.id = \\$1 AND p.user_id = \\$2\\)").
+		WithArgs("item-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
 	mock.ExpectExec("UPDATE plan_items SET plan_day_id = \\$1, name = \\$2, description = \\$3, location = \\$4, latitude = \\$5, longitude = \\$6, order_index = \\$7, estimated_time = \\$8, start_time = \\$9, duration = \\$10 WHERE id = \\$11").
 		WithArgs(sqlmock.AnyArg(), updatedItem.Name, updatedItem.Description, updatedItem.Location, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedItem.OrderIndex, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "item-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("PUT", "/api/plans/items/item-1", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/api/plans/items/item-1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdatePlanItem(rr, req)
 
@@ -92,11 +97,16 @@ func TestDeletePlanItem(t *testing.T) {
 
 	h := NewPlanItemsHandler(db)
 
+	// Expect ownership check
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plan_items i JOIN plans p ON i.plan_id = p.id WHERE i.id = \\$1 AND p.user_id = \\$2\\)").
+		WithArgs("item-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
 	mock.ExpectExec("DELETE FROM plan_items WHERE id = \\$1").
 		WithArgs("item-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("DELETE", "/api/plans/items/item-1", nil)
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/items/item-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlanItem(rr, req)
 

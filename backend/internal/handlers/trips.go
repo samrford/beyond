@@ -26,7 +26,8 @@ func NewTripsHandler(db *sql.DB) *TripsHandler {
 
 // ListTrips handles GET /api/trips
 func (h *TripsHandler) ListTrips(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query("SELECT id, name, start_date, end_date, header_photo, summary FROM trips ORDER BY start_date ASC")
+	userID := GetUserID(r.Context())
+	rows, err := h.db.Query("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE user_id = $1 ORDER BY start_date ASC", userID)
 	if err != nil {
 		log.Printf("Error querying trips: %v", err)
 		http.Error(w, "Failed to load trips", http.StatusInternalServerError)
@@ -41,7 +42,6 @@ func (h *TripsHandler) ListTrips(w http.ResponseWriter, r *http.Request) {
 			log.Printf("Error scanning trip: %v", err)
 			continue
 		}
-		// Notice Checkpoints are empty for the list view, we don't load them eagerly.
 		trips = append(trips, t)
 	}
 
@@ -51,10 +51,10 @@ func (h *TripsHandler) ListTrips(w http.ResponseWriter, r *http.Request) {
 
 // GetTrip handles GET /api/trips/:id
 func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
-	// Extract trip ID from URL path
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
 
-	row := h.db.QueryRow("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE id = $1", id)
+	row := h.db.QueryRow("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE id = $1 AND user_id = $2", id, userID)
 
 	var t data.Trip
 	if err := row.Scan(&t.ID, &t.Name, &t.StartDate, &t.EndDate, &t.HeaderPhoto, &t.Summary); err != nil {
@@ -106,11 +106,12 @@ func (h *TripsHandler) CreateTrip(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := GetUserID(r.Context())
 	t.ID = uuid.New().String()
 
 	_, err := h.db.Exec(
-		"INSERT INTO trips (id, name, start_date, end_date, header_photo, summary) VALUES ($1, $2, $3, $4, $5, $6)",
-		t.ID, t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary,
+		"INSERT INTO trips (id, name, start_date, end_date, header_photo, summary, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+		t.ID, t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary, userID,
 	)
 	if err != nil {
 		log.Printf("Error inserting trip: %v", err)
@@ -124,6 +125,7 @@ func (h *TripsHandler) CreateTrip(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTrip handles PUT /api/trips/:id
 func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
 
 	var t data.Trip
@@ -133,8 +135,8 @@ func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err := h.db.Exec(
-		"UPDATE trips SET name = $1, start_date = $2, end_date = $3, header_photo = $4, summary = $5 WHERE id = $6",
-		t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary, id,
+		"UPDATE trips SET name = $1, start_date = $2, end_date = $3, header_photo = $4, summary = $5 WHERE id = $6 AND user_id = $7",
+		t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary, id, userID,
 	)
 	if err != nil {
 		log.Printf("Error updating trip: %v", err)
@@ -148,9 +150,10 @@ func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
 
 // DeleteTrip handles DELETE /api/trips/:id
 func (h *TripsHandler) DeleteTrip(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
 
-	_, err := h.db.Exec("DELETE FROM trips WHERE id = $1", id)
+	_, err := h.db.Exec("DELETE FROM trips WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		log.Printf("Error deleting trip: %v", err)
 		http.Error(w, "Failed to delete trip", http.StatusInternalServerError)

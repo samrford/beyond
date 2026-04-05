@@ -26,10 +26,11 @@ func TestListPlans(t *testing.T) {
 		AddRow("1", "Plan 1", now, now.AddDate(0, 0, 7), "Summary 1", "photo.jpg", now, now).
 		AddRow("2", "Plan 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "Summary 2", "photo2.jpg", now, now)
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans ORDER BY start_date ASC").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE user_id = \\$1 ORDER BY start_date ASC").
+		WithArgs(testUserID).
 		WillReturnRows(rows)
 
-	req := httptest.NewRequest("GET", "/api/plans", nil)
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans", nil))
 	rr := httptest.NewRecorder()
 	h.ListPlans(rr, req)
 
@@ -57,8 +58,8 @@ func TestGetPlan(t *testing.T) {
 	planRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at"}).
 		AddRow("1", "Plan 1", now, now.AddDate(0, 0, 7), "Summary 1", "photo.jpg", now, now)
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE id = \\$1").
-		WithArgs("1").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
 		WillReturnRows(planRows)
 
 	dayRows := sqlmock.NewRows([]string{"id", "date", "notes"}).
@@ -75,7 +76,7 @@ func TestGetPlan(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(itemRows)
 
-	req := httptest.NewRequest("GET", "/api/plans/1", nil)
+	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetPlan(rr, req)
 
@@ -111,10 +112,10 @@ func TestCreatePlan(t *testing.T) {
 	body, _ := json.Marshal(newPlan)
 
 	mock.ExpectExec("INSERT INTO plans").
-		WithArgs(sqlmock.AnyArg(), newPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newPlan.Summary, newPlan.CoverPhoto, sqlmock.AnyArg(), sqlmock.AnyArg()).
+		WithArgs(sqlmock.AnyArg(), newPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newPlan.Summary, newPlan.CoverPhoto, sqlmock.AnyArg(), sqlmock.AnyArg(), testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("POST", "/api/plans", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreatePlan(rr, req)
 
@@ -145,11 +146,11 @@ func TestUpdatePlan(t *testing.T) {
 	}
 	body, _ := json.Marshal(updatedPlan)
 
-	mock.ExpectExec("UPDATE plans SET name = \\$1, start_date = \\$2, end_date = \\$3, summary = \\$4, cover_photo = \\$5, updated_at = \\$6 WHERE id = \\$7").
-		WithArgs(updatedPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedPlan.Summary, updatedPlan.CoverPhoto, sqlmock.AnyArg(), "1").
+	mock.ExpectExec("UPDATE plans SET name = \\$1, start_date = \\$2, end_date = \\$3, summary = \\$4, cover_photo = \\$5, updated_at = \\$6 WHERE id = \\$7 AND user_id = \\$8").
+		WithArgs(updatedPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedPlan.Summary, updatedPlan.CoverPhoto, sqlmock.AnyArg(), "1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("PUT", "/api/plans/1", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/api/plans/1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdatePlan(rr, req)
 
@@ -171,11 +172,11 @@ func TestDeletePlan(t *testing.T) {
 
 	h := NewPlansHandler(db)
 
-	mock.ExpectExec("DELETE FROM plans WHERE id = \\$1").
-		WithArgs("1").
+	mock.ExpectExec("DELETE FROM plans WHERE id = \\$1 AND user_id = \\$2").
+		WithArgs("1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("DELETE", "/api/plans/1", nil)
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlan(rr, req)
 

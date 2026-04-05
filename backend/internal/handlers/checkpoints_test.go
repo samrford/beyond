@@ -30,15 +30,18 @@ func TestCreateCheckpoint(t *testing.T) {
 		Journal:     "It was a nice hike.",
 	}
 	body, _ := json.Marshal(newCheckpoint)
-
-	// Since photosJSON is marshaled from slice
 	photosJSON, _ := json.Marshal(newCheckpoint.Photos)
+
+	// Expect ownership check
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM trips WHERE id = \\$1 AND user_id = \\$2\\)").
+		WithArgs("trip-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 	mock.ExpectExec("INSERT INTO checkpoints").
 		WithArgs(sqlmock.AnyArg(), "trip-1", newCheckpoint.Name, newCheckpoint.Location, sqlmock.AnyArg(), newCheckpoint.Description, photosJSON, newCheckpoint.Journal).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("POST", "/api/trips/trip-1/checkpoints", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips/trip-1/checkpoints", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreateCheckpoint(rr, req)
 
@@ -74,11 +77,16 @@ func TestUpdateCheckpoint(t *testing.T) {
 	body, _ := json.Marshal(updatedCp)
 	photosJSON, _ := json.Marshal(updatedCp.Photos)
 
+	// Expect ownership check
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM checkpoints c JOIN trips t ON c.trip_id = t.id WHERE c.id = \\$1 AND t.user_id = \\$2\\)").
+		WithArgs("cp-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
 	mock.ExpectExec("UPDATE checkpoints SET name = \\$1, location = \\$2, timestamp = \\$3, description = \\$4, photos = \\$5, journal = \\$6 WHERE id = \\$7").
 		WithArgs(updatedCp.Name, updatedCp.Location, sqlmock.AnyArg(), updatedCp.Description, photosJSON, updatedCp.Journal, "cp-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("PUT", "/api/checkpoints/cp-1", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/api/checkpoints/cp-1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdateCheckpoint(rr, req)
 
@@ -103,11 +111,16 @@ func TestDeleteCheckpoint(t *testing.T) {
 
 	h := NewCheckpointsHandler(db)
 
+	// Expect ownership check
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM checkpoints c JOIN trips t ON c.trip_id = t.id WHERE c.id = \\$1 AND t.user_id = \\$2\\)").
+		WithArgs("cp-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
 	mock.ExpectExec("DELETE FROM checkpoints WHERE id = \\$1").
 		WithArgs("cp-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("DELETE", "/api/checkpoints/cp-1", nil)
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/checkpoints/cp-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeleteCheckpoint(rr, req)
 

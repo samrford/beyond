@@ -27,15 +27,15 @@ func TestCreatePlanDay(t *testing.T) {
 	}
 	body, _ := json.Marshal(newDay)
 
-	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plans WHERE id = \\$1\\)").
-		WithArgs("plan-1").
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plans WHERE id = \\$1 AND user_id = \\$2\\)").
+		WithArgs("plan-1", testUserID).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 
 	mock.ExpectExec("INSERT INTO plan_days").
 		WithArgs(sqlmock.AnyArg(), "plan-1", sqlmock.AnyArg(), newDay.Notes).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("POST", "/api/plans/plan-1/days", bytes.NewBuffer(body))
+	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/days", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreatePlanDay(rr, req)
 
@@ -58,11 +58,16 @@ func TestDeletePlanDay(t *testing.T) {
 
 	h := NewPlanDaysHandler(db)
 
+	// Expect ownership check
+	mock.ExpectQuery("SELECT EXISTS\\(SELECT 1 FROM plan_days d JOIN plans p ON d.plan_id = p.id WHERE d.id = \\$1 AND p.user_id = \\$2\\)").
+		WithArgs("day-1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
 	mock.ExpectExec("DELETE FROM plan_days WHERE id = \\$1").
 		WithArgs("day-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := httptest.NewRequest("DELETE", "/api/plans/days/day-1", nil)
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/days/day-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlanDay(rr, req)
 

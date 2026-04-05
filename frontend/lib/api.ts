@@ -2,8 +2,34 @@
  * Centralised API client.
  */
 
+import { createClient } from "@/lib/supabase/client";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
+/**
+ * Get the current Supabase access token, if available.
+ */
+async function getAccessToken(): Promise<string | null> {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Build auth headers if a session exists.
+ */
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAccessToken();
+  if (token) {
+    return { Authorization: `Bearer ${token}` };
+  }
+  return {};
+}
 
 /**
  * Typed fetch wrapper that auto-prepends the API base URL,
@@ -13,9 +39,12 @@ export async function apiFetch<T>(
   path: string,
   options?: RequestInit
 ): Promise<T> {
+  const auth = await authHeaders();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     headers: {
       "Content-Type": "application/json",
+      ...auth,
       ...options?.headers,
     },
     ...options,
@@ -42,8 +71,13 @@ export async function apiUpload<T>(
   path: string,
   formData: FormData
 ): Promise<T> {
+  const auth = await authHeaders();
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
+    headers: {
+      ...auth,
+    },
     body: formData,
   });
 
