@@ -37,9 +37,10 @@ func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Verify plan exists
+	// Verify plan belongs to user
+	userID := GetUserID(r.Context())
 	var exists bool
-	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1)", planID).Scan(&exists)
+	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1 AND user_id = $2)", planID, userID).Scan(&exists)
 	if err != nil || !exists {
 		http.Error(w, "Plan not found", http.StatusNotFound)
 		return
@@ -64,7 +65,18 @@ func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request
 
 // UpdatePlanItem handles PUT /api/plans/items/:id
 func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/items/")
+
+	// Verify plan item belongs to a plan owned by this user
+	var exists bool
+	if err := h.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM plan_items i JOIN plans p ON i.plan_id = p.id WHERE i.id = $1 AND p.user_id = $2)",
+		id, userID,
+	).Scan(&exists); err != nil || !exists {
+		http.Error(w, "Plan item not found", http.StatusNotFound)
+		return
+	}
 
 	var i data.PlanItem
 	if err := json.NewDecoder(r.Body).Decode(&i); err != nil {
@@ -88,7 +100,18 @@ func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request
 
 // DeletePlanItem handles DELETE /api/plans/items/:id
 func (h *PlanItemsHandler) DeletePlanItem(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/items/")
+
+	// Verify plan item belongs to a plan owned by this user
+	var exists bool
+	if err := h.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM plan_items i JOIN plans p ON i.plan_id = p.id WHERE i.id = $1 AND p.user_id = $2)",
+		id, userID,
+	).Scan(&exists); err != nil || !exists {
+		http.Error(w, "Plan item not found", http.StatusNotFound)
+		return
+	}
 
 	_, err := h.db.Exec("DELETE FROM plan_items WHERE id = $1", id)
 	if err != nil {

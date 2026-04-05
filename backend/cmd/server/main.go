@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -97,6 +98,22 @@ func main() {
 		log.Printf("Warning: Failed to initialize storage: %v", err)
 	}
 
+	// Initialize OIDC verifier for Supabase JWT verification
+	supabaseURL := os.Getenv("SUPABASE_URL")
+	if supabaseURL == "" {
+		supabaseURL = "https://zzoxjjkljxbaycmubwog.supabase.co"
+	}
+
+	verifier, err := handlers.InitAuth(context.Background(), supabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to initialize OIDC: %v", err)
+	}
+
+	// Helper: wrap handler with CORS + Auth middleware
+	authed := func(h http.HandlerFunc) http.HandlerFunc {
+		return corsMiddleware(handlers.AuthMiddleware(verifier, h))
+	}
+
 	// Create handlers
 	tripsHandler := handlers.NewTripsHandler(db)
 	checkpointsHandler := handlers.NewCheckpointsHandler(db)
@@ -105,10 +122,10 @@ func main() {
 	planItemsHandler := handlers.NewPlanItemsHandler(db)
 	uploadHandler := handlers.NewUploadHandler(storage)
 
-	// Create server with CORS middleware
+	// Create server
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/trips", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/trips", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			tripsHandler.ListTrips(w, r)
 		} else if r.Method == "POST" {
@@ -116,7 +133,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/trips/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/trips/", authed(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/trips/")
 		if strings.HasSuffix(path, "/checkpoints") {
 			if r.Method == "POST" {
@@ -134,7 +151,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/checkpoints/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/checkpoints/", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "PUT" {
 			checkpointsHandler.UpdateCheckpoint(w, r)
 		} else if r.Method == "DELETE" {
@@ -142,7 +159,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/plans", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/plans", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			plansHandler.ListPlans(w, r)
 		} else if r.Method == "POST" {
@@ -150,7 +167,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/plans/", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/plans/", authed(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/plans/")
 		
 		if strings.HasPrefix(path, "days/") {
@@ -193,7 +210,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/upload", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/upload", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			uploadHandler.HandleUpload(w, r)
 		} else {

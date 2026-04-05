@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"errors"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -55,4 +56,42 @@ func TestHandleUpload(t *testing.T) {
 	assert.Equal(t, "http://storage/test.jpg", resp["url"])
 
 	mockStorage.AssertExpectations(t)
+}
+
+func TestHandleUpload_NoStorage(t *testing.T) {
+	h := NewUploadHandler(nil)
+	req := httptest.NewRequest("POST", "/api/upload", nil)
+	rr := httptest.NewRecorder()
+	h.HandleUpload(rr, req)
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestHandleUpload_InvalidForm(t *testing.T) {
+	mockStorage := new(MockStorage)
+	h := NewUploadHandler(mockStorage)
+	req := httptest.NewRequest("POST", "/api/upload", nil)
+	rr := httptest.NewRecorder()
+	h.HandleUpload(rr, req)
+	assert.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestHandleUpload_UploadError(t *testing.T) {
+	mockStorage := new(MockStorage)
+	h := NewUploadHandler(mockStorage)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	writer.CreateFormFile("file", "test.jpg")
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/api/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	mockStorage.On("UploadFile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+		Return("", errors.New("upload fail"))
+
+	rr := httptest.NewRecorder()
+	h.HandleUpload(rr, req)
+
+	assert.Equal(t, http.StatusInternalServerError, rr.Code)
 }

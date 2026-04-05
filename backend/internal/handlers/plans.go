@@ -25,7 +25,8 @@ func NewPlansHandler(db *sql.DB) *PlansHandler {
 
 // ListPlans handles GET /api/plans
 func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans ORDER BY start_date ASC")
+	userID := GetUserID(r.Context())
+	rows, err := h.db.Query("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE user_id = $1 ORDER BY start_date ASC", userID)
 	if err != nil {
 		log.Printf("Error querying plans: %v", err)
 		http.Error(w, "Failed to load plans", http.StatusInternalServerError)
@@ -55,9 +56,10 @@ func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 
 // GetPlan handles GET /api/plans/:id
 func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/")
 
-	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE id = $1", id)
+	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE id = $1 AND user_id = $2", id, userID)
 
 	var p data.Plan
 	if err := row.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt); err != nil {
@@ -168,14 +170,15 @@ func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userID := GetUserID(r.Context())
 	p.ID = uuid.New().String()
 	now := time.Now()
 	p.CreatedAt = now
 	p.UpdatedAt = now
 
 	_, err := h.db.Exec(
-		"INSERT INTO plans (id, name, start_date, end_date, summary, cover_photo, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
-		p.ID, p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.CreatedAt, p.UpdatedAt,
+		"INSERT INTO plans (id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		p.ID, p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.CreatedAt, p.UpdatedAt, userID,
 	)
 	if err != nil {
 		log.Printf("Error inserting plan: %v", err)
@@ -189,6 +192,7 @@ func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePlan handles PUT /api/plans/:id
 func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/")
 
 	var p data.Plan
@@ -201,8 +205,8 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	p.UpdatedAt = now
 
 	_, err := h.db.Exec(
-		"UPDATE plans SET name = $1, start_date = $2, end_date = $3, summary = $4, cover_photo = $5, updated_at = $6 WHERE id = $7",
-		p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.UpdatedAt, id,
+		"UPDATE plans SET name = $1, start_date = $2, end_date = $3, summary = $4, cover_photo = $5, updated_at = $6 WHERE id = $7 AND user_id = $8",
+		p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.UpdatedAt, id, userID,
 	)
 	if err != nil {
 		log.Printf("Error updating plan: %v", err)
@@ -216,9 +220,10 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 
 // DeletePlan handles DELETE /api/plans/:id
 func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/api/plans/")
 
-	_, err := h.db.Exec("DELETE FROM plans WHERE id = $1", id)
+	_, err := h.db.Exec("DELETE FROM plans WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
 		log.Printf("Error deleting plan: %v", err)
 		http.Error(w, "Failed to delete plan", http.StatusInternalServerError)
