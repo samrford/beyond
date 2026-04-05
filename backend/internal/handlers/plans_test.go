@@ -68,10 +68,10 @@ func TestGetPlan(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(dayRows)
 
-	itemRows := sqlmock.NewRows([]string{"id", "plan_day_id", "name", "description", "location", "latitude", "longitude", "order_index", "estimated_time"}).
-		AddRow("i1", "d1", "Item 1", "Desc 1", "Loc 1", 1.0, 2.0, 0, "1h")
+	itemRows := sqlmock.NewRows([]string{"id", "plan_day_id", "name", "description", "location", "latitude", "longitude", "order_index", "estimated_time", "start_time", "duration"}).
+		AddRow("i1", "d1", "Item 1", "Desc 1", "Loc 1", 1.0, 2.0, 0, "1h", "10:00", 60)
 
-	mock.ExpectQuery("SELECT id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time FROM plan_items WHERE plan_id = \\$1").
+	mock.ExpectQuery("SELECT id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time, start_time, duration FROM plan_items WHERE plan_id = \\$1").
 		WithArgs("1").
 		WillReturnRows(itemRows)
 

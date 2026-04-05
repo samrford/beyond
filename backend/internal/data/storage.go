@@ -10,6 +10,10 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
+type FileUploader interface {
+	UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error)
+}
+
 type Storage struct {
 	client    *minio.Client
 	bucket    string
@@ -40,7 +44,7 @@ func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, 
 		if err != nil {
 			return nil, err
 		}
-		
+
 		// Set public read policy
 		policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::%s/*"]}]}`, bucket, bucket)
 		err = client.SetBucketPolicy(ctx, bucket, policy)

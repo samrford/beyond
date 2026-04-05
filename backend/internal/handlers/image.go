@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // ImageHandler handles image requests with proper CORS
@@ -26,13 +27,13 @@ func ImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Extract image path from URL
 	path := r.URL.Path
-	if len(path) < 10 || path[:7] != "/api/image" {
+	if !strings.HasPrefix(path, "/api/image/") {
 		http.Error(w, "Invalid image path", http.StatusBadRequest)
 		return
 	}
 
 	// Extract the image identifier from the path
-	imageID := path[8:] // Remove "/api/image" prefix
+	imageID := strings.TrimPrefix(path, "/api/image/")
 
 	// Generate a unique image based on the ID
 	imageData := fmt.Sprintf("Beyond Travel Image: %s", imageID)
