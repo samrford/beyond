@@ -5,10 +5,7 @@ import StatsBadge from "../components/StatsBadge";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-gray-50 dark:bg-gray-950 transition-colors relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-500/10 rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-rose-500/10 rounded-full blur-[120px] pointer-events-none" />
-
+    <main className="min-h-screen flex flex-col items-center justify-center p-8 bg-transparent">
       <div className="text-center max-w-4xl z-10">
         <CountdownBadge />
 

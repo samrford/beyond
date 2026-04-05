@@ -3,6 +3,9 @@
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
 import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
+import toast from "react-hot-toast";
+import LoadingGlobe from "@/components/LoadingGlobe";
+import PageTransition from "@/components/PageTransition";
 
 export default function EditTripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -22,25 +25,27 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
   const handleSubmit = async (data: any) => {
     try {
       await updateTrip.mutateAsync(data);
+      toast.success("Trip updated!");
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error updating trip");
+      toast.error("Failed to update trip");
     }
   };
 
   if (isLoading) {
     return (
-      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
-        <div className="text-center">Loading trip...</div>
+      <main className="min-h-screen bg-transparent flex items-center justify-center">
+        <LoadingGlobe message="Preparing trip details..." />
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
-      <div className="max-w-3xl mx-auto">
+    <main className="min-h-screen p-8 bg-transparent border-none">
+      <PageTransition>
+        <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-8 border-none flex items-center gap-2">
           Edit Trip
         </h1>
@@ -55,6 +60,7 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
           )}
         </div>
       </div>
-    </main>
+    </PageTransition>
+  </main>
   );
 }

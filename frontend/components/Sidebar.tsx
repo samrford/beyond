@@ -13,7 +13,9 @@ import {
   Menu,
   X,
   Compass,
-  Settings
+  Settings,
+  Palette,
+  LayoutDashboard
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTheme } from "../app/ThemeClient";
@@ -30,6 +32,10 @@ const Sidebar = () => {
     { name: "My Plans", href: "/plans", icon: Map },
     { name: "My Trips", href: "/trips", icon: Plane },
   ];
+
+  if (process.env.NEXT_PUBLIC_DEV_STYLING === "true") {
+    navItems.push({ name: "Design System", href: "/test/design", icon: LayoutDashboard });
+  }
 
   const themeOptions = [
     { id: "light", name: "Light", icon: Sun },

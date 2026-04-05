@@ -9,6 +9,9 @@ import CheckpointCard from "@/components/CheckpointCard";
 import ConfirmModal from "@/components/ConfirmModal";
 import { useTrip, useDeleteTrip, useDeleteCheckpoint } from "@/lib/queries/trips";
 import { getImageUrl } from "@/lib/api";
+import toast from "react-hot-toast";
+import LoadingGlobe from "@/components/LoadingGlobe";
+import PageTransition from "@/components/PageTransition";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -33,29 +36,29 @@ export default function TripPage({ params }: { params: { id: string } }) {
     try {
       if (type === "trip") {
         await deleteTripMutation.mutateAsync(id);
+        toast.success("Trip deleted");
         router.push("/trips");
       } else if (type === "checkpoint") {
         await deleteCheckpointMutation.mutateAsync(id);
+        toast.success("Checkpoint deleted");
       }
     } catch (error) {
       console.error(error);
-      alert(`Error deleting ${type}`);
+      toast.error(`Error deleting ${type}`);
     }
   };
 
   if (isLoading) {
     return (
-      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">Loading trip...</p>
-        </div>
+      <main className="min-h-screen p-8 bg-transparent flex items-center justify-center">
+        <LoadingGlobe message="Loading your adventure..." />
       </main>
     );
   }
 
   if (!trip) {
     return (
-      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
+      <main className="min-h-screen p-8 bg-transparent">
         <div className="text-center">
           <p className="text-gray-600 dark:text-gray-400">Trip not found.</p>
           <Link href="/trips" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
@@ -67,8 +70,9 @@ export default function TripPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header Section */}
+    <main className="min-h-screen bg-transparent">
+      <PageTransition>
+        {/* Header Section */}
       <div className="relative h-64 bg-gray-300 dark:bg-gray-800">
         <Image
           src={getImageUrl(trip.headerPhoto)}
@@ -141,6 +145,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
           ))}
         </div>
       </div>
+    </PageTransition>
 
       <ConfirmModal
         isOpen={deleteModal.isOpen}

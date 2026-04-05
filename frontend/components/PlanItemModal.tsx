@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { X, Clock, MapPin, AlignLeft, Globe } from "lucide-react";
+import toast from "react-hot-toast";
+import ConfirmModal from "./ConfirmModal";
 
 interface PlanItem {
   id: string;
@@ -27,6 +29,7 @@ interface PlanItemModalProps {
 }
 
 export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete }: PlanItemModalProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const extractHHMM = (timeStr: string | null) => {
     if (!timeStr) return "";
     if (timeStr.includes("T")) {
@@ -58,6 +61,7 @@ export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete 
         duration: item.duration || 0,
         startTime: extractHHMM(item.startTime),
       });
+      setShowDeleteConfirm(false);
     }
   }, [isOpen, item]);
 
@@ -77,10 +81,11 @@ export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete 
         duration: parseInt(formData.duration.toString()) || 0,
         startTime: formData.startTime ? `${formData.startTime}:00` : null,
       });
+      toast.success("Activity saved!");
       onClose();
     } catch (error) {
       console.error("Failed to save item:", error);
-      alert("Failed to save changes.");
+      toast.error("Failed to save activity");
     } finally {
       setSaving(false);
     }
@@ -243,17 +248,26 @@ export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete 
           <div className="px-6 py-3 bg-red-50 dark:bg-red-900/10 border-t border-red-100 dark:border-red-900/30 flex justify-center">
              <button 
                type="button"
-               onClick={() => {
-                 if (confirm("Are you sure you want to delete this activity?")) {
-                   onDelete(item.id);
-                 }
-               }}
+               onClick={() => setShowDeleteConfirm(true)}
                className="text-xs font-bold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 uppercase tracking-widest"
              >
                Delete Activity
              </button>
           </div>
         )}
+
+        <ConfirmModal
+          isOpen={showDeleteConfirm}
+          title="Delete Activity"
+          message="Are you sure you want to permanently delete this itinerary item?"
+          onConfirm={() => {
+            if (onDelete && item.id) {
+              onDelete(item.id);
+            }
+            setShowDeleteConfirm(false);
+          }}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
       </div>
     </div>
   );

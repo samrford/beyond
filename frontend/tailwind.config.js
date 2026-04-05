@@ -23,7 +23,18 @@ module.exports = {
         },
         animation: {
           'spin-slow': 'spin 8s linear infinite',
+          'reverse-spin-slow': 'reverse-spin 12s linear infinite',
+          'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         },
+        keyframes: {
+          'reverse-spin': {
+            from: { transform: 'rotate(360deg)' },
+            to: { transform: 'rotate(0deg)' },
+          }
+        },
+        transitionTimingFunction: {
+          'premium-reveal': 'cubic-bezier(0.2, 0.8, 0.2, 1)',
+        }
       },
   },
   plugins: [],

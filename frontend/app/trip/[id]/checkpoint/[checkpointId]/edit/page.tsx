@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import CheckpointForm from "@/components/CheckpointForm";
 import { useTrip, useUpdateCheckpoint } from "@/lib/queries/trips";
+import toast from "react-hot-toast";
+import LoadingGlobe from "@/components/LoadingGlobe";
 
 export default function EditCheckpointPage({ params }: { params: { id: string, checkpointId: string } }) {
   const router = useRouter();
@@ -28,32 +30,33 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
         checkpointId: params.checkpointId,
         data,
       });
+      toast.success("Checkpoint updated!");
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
-      alert("Error updating checkpoint");
+      toast.error("Failed to update checkpoint");
     }
   };
 
   if (isLoading) {
     return (
-      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
-        <div className="text-center">Loading checkpoint...</div>
+      <main className="min-h-screen bg-transparent flex items-center justify-center">
+        <LoadingGlobe message="Loading checkpoint details..." />
       </main>
     );
   }
 
   if (!initialData) {
     return (
-      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
+      <main className="min-h-screen p-8 bg-transparent border-none">
         <div className="text-center">Checkpoint not found.</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
+    <main className="min-h-screen p-8 bg-transparent border-none">
       <div className="max-w-3xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-100 mb-8 mt-4">
           Edit Checkpoint
