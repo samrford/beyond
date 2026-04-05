@@ -118,7 +118,7 @@ export default function DesignSystemPage() {
                   <div className="space-y-2">
                     <p className="text-[10px] font-black text-primary-500 uppercase tracking-widest">Body Large</p>
                     <p className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-                      Beyond is more than just a trip tracker. It's a digital gallery for your travel experiences and a precision tool for mapping out your future expeditions.
+                      Beyond is more than just a trip tracker. It&apos;s a digital gallery for your travel experiences and a precision tool for mapping out your future expeditions.
                     </p>
                   </div>
                   <div className="space-y-2">
@@ -198,7 +198,7 @@ export default function DesignSystemPage() {
                     <div className="relative z-10 space-y-4">
                        <h4 className="text-2xl font-black">The Reveal Curve</h4>
                        <p className="max-w-xl text-primary-100 italic font-medium leading-relaxed">
-                          "Premium motion is about weight. We avoid bouncy spring effects in favor of deliberate, high-inertia reveal curves."
+                          &quot;Premium motion is about weight. We avoid bouncy spring effects in favor of deliberate, high-inertia reveal curves.&quot;
                        </p>
                        <div className="font-mono text-xs p-3 bg-black/20 rounded-xl w-fit">
                           cubic-bezier(0.2, 0.8, 0.2, 1)
