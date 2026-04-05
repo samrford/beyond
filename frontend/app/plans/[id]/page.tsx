@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calendar, MapPin, Search, Clock, Plus, TriangleAlert } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Search, Clock, Plus, TriangleAlert, Trash2 } from "lucide-react";
 import MapPlaceholder from "@/components/MapPlaceholder";
 import PlanItemModal from "@/components/PlanItemModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
@@ -16,6 +17,7 @@ export default function PlanDetailPage() {
 
   const [plan, setPlan] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Drag state
   const [activeDragItem, setActiveDragItem] = useState<any>(null);
@@ -48,6 +50,22 @@ export default function PlanDetailPage() {
 
     fetchPlan();
   }, [id, router]);
+
+  const handleDeletePlan = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/plans/${id}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete plan");
+      router.push("/plans");
+      router.refresh();
+    } catch (error) {
+      console.error(error);
+      alert("Error deleting plan");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, item: any, source: "scratchpad" | "day", sourceId: string | null) => {
@@ -370,6 +388,13 @@ export default function PlanDetailPage() {
         </div>
         
         <div className="flex gap-3">
+           <button
+             onClick={() => setIsDeleting(true)}
+             className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+             title="Delete Plan"
+           >
+             <Trash2 size={20} />
+           </button>
            <Link 
              href={`/plans/${id}/edit`}
              className="px-4 py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm"
@@ -584,6 +609,14 @@ export default function PlanDetailPage() {
           onDelete={handleDeleteItem}
         />
       )}
+
+      <ConfirmModal
+        isOpen={isDeleting}
+        title="Delete Plan"
+        message="Are you sure you want to delete this entire plan? This will permanently remove all itinerary items and days. This action cannot be undone."
+        onConfirm={handleDeletePlan}
+        onCancel={() => setIsDeleting(false)}
+      />
     </main>
   );
 }

@@ -2,50 +2,95 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  :root {
+    --background: 24 30% 99%;
+    --foreground: 24 60% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 24 60% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 24 60% 5%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 30% 96%;
+    --secondary-foreground: 24 60% 10%;
+    --muted: 24 30% 96%;
+    --muted-foreground: 24 15% 45%;
+    --accent: 24 95% 96%;
+    --accent-foreground: 24 95% 53%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 24 15% 90%;
+    --input: 24 15% 90%;
+    --ring: 24 95% 53%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 24 60% 3%;
+    --foreground: 24 20% 98%;
+    --card: 24 60% 3%;
+    --card-foreground: 24 20% 98%;
+    --popover: 24 60% 3%;
+    --popover-foreground: 24 20% 98%;
+    --primary: 24 95% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 24 30% 10%;
+    --secondary-foreground: 24 20% 98%;
+    --muted: 24 30% 10%;
+    --muted-foreground: 24 15% 65%;
+    --accent: 24 95% 10%;
+    --accent-foreground: 24 95% 53%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 24 20% 98%;
+    --border: 24 30% 10%;
+    --input: 24 30% 10%;
+    --ring: 24 95% 53%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-gray-200 dark:border-gray-800 transition-colors duration-200;
+  }
+  body {
+    @apply bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
 @layer utilities {
-  .dark-mode-toggle {
-    @apply inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors;
+  .glass {
+    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-md border border-white/20 dark:border-gray-800/20;
+  }
+  
+  .glass-card {
+    @apply bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg border border-white/40 dark:border-white/10 shadow-xl;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-500 to-rose-500 dark:from-primary-400 dark:to-rose-400;
   }
 }
 
-:root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+.sidebar-item-active {
+  @apply bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-medium;
 }
 
-[data-theme="dark"] {
-  --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 15, 23, 42;
-  --background-end-rgb: 30, 41, 59;
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-[data-theme="light"] {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-[data-theme="system"] {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
 }
 
-@media (prefers-color-scheme: dark) {
-  [data-theme="system"] {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 15, 23, 42;
-    --background-end-rgb: 30, 41, 59;
-  }
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors;
 }

@@ -108,13 +108,13 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	for iRows.Next() {
 		var i data.PlanItem
 		i.PlanID = id
-		
+
 		// Use sql.Null types for nullable fields
 		var dayID sql.NullString
 		var lat sql.NullFloat64
 		var lon sql.NullFloat64
 		var startTime sql.NullString
-		
+
 		if err := iRows.Scan(&i.ID, &dayID, &i.Name, &i.Description, &i.Location, &lat, &lon, &i.OrderIndex, &i.EstimatedTime, &startTime, &i.Duration); err != nil {
 			log.Printf("Error scanning plan item: %v", err)
 			continue
@@ -155,7 +155,7 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	for _, dPtr := range orderedDays {
 		p.Days = append(p.Days, *dPtr)
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(p)
 }
