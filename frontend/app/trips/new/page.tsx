@@ -1,33 +1,21 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { useCreateTrip } from "@/lib/queries/trips";
 
 export default function NewTripPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
+  const createTrip = useCreateTrip();
 
   const handleSubmit = async (data: any) => {
-    setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/trips`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error("Failed to create trip");
-      const created = await response.json();
-      router.push(`/trip/${created.ID || created.id}`);
+      const created = await createTrip.mutateAsync(data);
+      router.push(`/trip/${created.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
       alert("Error creating trip");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -41,7 +29,7 @@ export default function NewTripPage() {
           <TripForm
             onSubmit={handleSubmit}
             onCancel={() => router.back()}
-            isLoading={isLoading}
+            isLoading={createTrip.isPending}
           />
         </div>
       </div>

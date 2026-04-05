@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { apiUpload, API_BASE_URL } from "@/lib/api";
 
 export const useUpload = () => {
   const [uploading, setUploading] = useState(false);
@@ -19,16 +18,7 @@ export const useUpload = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await fetch(`${API_BASE_URL}/api/upload`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await response.json();
+      const data = await apiUpload<{ url: string }>("/api/upload", formData);
       return data.url;
     } catch (error) {
       console.error("Upload error:", error);

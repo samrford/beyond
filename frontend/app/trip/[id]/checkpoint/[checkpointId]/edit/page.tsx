@@ -1,74 +1,53 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import CheckpointForm from "@/components/CheckpointForm";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { useTrip, useUpdateCheckpoint } from "@/lib/queries/trips";
 
 export default function EditCheckpointPage({ params }: { params: { id: string, checkpointId: string } }) {
   const router = useRouter();
-  const [initialData, setInitialData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const { data: trip, isLoading } = useTrip(params.id);
+  const updateCheckpoint = useUpdateCheckpoint(params.id);
 
-  useEffect(() => {
-    const fetchCheckpoint = async () => {
-      try {
-        // we only have get trip endpoint currently, so fetch trip and find the checkpoint
-        const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
-        if (!response.ok) throw new Error("Failed to fetch trip");
-        const data = await response.json();
-        
-        const checkpoints = data.Checkpoints || data.checkpoints || [];
-        const cp = checkpoints.find((c: any) => (c.ID || c.id) === params.checkpointId);
-        
-        if (!cp) throw new Error("Checkpoint not found");
+  const checkpoint = trip?.checkpoints?.find((c) => c.id === params.checkpointId);
 
-        setInitialData({
-          name: cp.Name || cp.name,
-          location: cp.Location || cp.location,
-          timestamp: cp.Timestamp || cp.timestamp,
-          description: cp.Description || cp.description,
-          photos: cp.Photos || cp.photos || [],
-          journal: cp.Journal || cp.journal,
-        });
-      } catch (error) {
-        console.error("Error fetching checkpoint:", error);
-        alert("Error loading checkpoint data");
-        router.push(`/trip/${params.id}`);
-      } finally {
-        setLoading(false);
+  const initialData = checkpoint
+    ? {
+        name: checkpoint.name,
+        location: checkpoint.location,
+        timestamp: checkpoint.timestamp,
+        description: checkpoint.description,
+        photos: checkpoint.photos || [],
+        journal: checkpoint.journal,
       }
-    };
-
-    fetchCheckpoint();
-  }, [params.id, params.checkpointId, router]);
+    : null;
 
   const handleSubmit = async (data: any) => {
-    setIsSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/checkpoints/${params.checkpointId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+      await updateCheckpoint.mutateAsync({
+        checkpointId: params.checkpointId,
+        data,
       });
-
-      if (!response.ok) throw new Error("Failed to update checkpoint");
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
       alert("Error updating checkpoint");
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
         <div className="text-center">Loading checkpoint...</div>
+      </main>
+    );
+  }
+
+  if (!initialData) {
+    return (
+      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
+        <div className="text-center">Checkpoint not found.</div>
       </main>
     );
   }
@@ -80,14 +59,12 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
           Edit Checkpoint
         </h1>
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          {initialData && (
-            <CheckpointForm
-              initialData={initialData}
-              onSubmit={handleSubmit}
-              onCancel={() => router.back()}
-              isLoading={isSaving}
-            />
-          )}
+          <CheckpointForm
+            initialData={initialData}
+            onSubmit={handleSubmit}
+            onCancel={() => router.back()}
+            isLoading={updateCheckpoint.isPending}
+          />
         </div>
       </div>
     </main>

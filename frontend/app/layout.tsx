@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import ThemeClient from "./ThemeClient";
 import Sidebar from "../components/Sidebar";
+import QueryProvider from "@/lib/queries/providers";
 
 export const metadata: Metadata = {
   title: "Beyond - Travel Adventures",
@@ -15,12 +16,14 @@ export default function RootLayout({
 }>) {
   return (
     <ThemeClient initialState={{ theme: "system" }}>
-      <div className="flex">
-        <Sidebar />
-        <div className="flex-1 min-h-screen overflow-x-hidden">
-          {children}
+      <QueryProvider>
+        <div className="flex">
+          <Sidebar />
+          <div className="flex-1 min-h-screen overflow-x-hidden">
+            {children}
+          </div>
         </div>
-      </div>
+      </QueryProvider>
     </ThemeClient>
   );
 }

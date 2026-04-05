@@ -1,63 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
 
 export default function EditTripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const [initialData, setInitialData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const { data: trip, isLoading } = useTrip(params.id);
+  const updateTrip = useUpdateTrip(params.id);
 
-  useEffect(() => {
-    const fetchTrip = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`);
-        if (!response.ok) throw new Error("Failed to fetch trip");
-        const data = await response.json();
-        setInitialData({
-          name: data.Name || data.name,
-          startDate: data.StartDate || data.startDate,
-          endDate: data.EndDate || data.endDate,
-          headerPhoto: data.HeaderPhoto || data.headerPhoto,
-          summary: data.Summary || data.summary,
-        });
-      } catch (error) {
-        console.error("Error fetching trip:", error);
-        alert("Error loading trip data");
-        router.push("/trips");
-      } finally {
-        setLoading(false);
+  const initialData = trip
+    ? {
+        name: trip.name,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        headerPhoto: trip.headerPhoto,
+        summary: trip.summary,
       }
-    };
-
-    fetchTrip();
-  }, [params.id, router]);
+    : null;
 
   const handleSubmit = async (data: any) => {
-    setIsSaving(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/trips/${params.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) throw new Error("Failed to update trip");
+      await updateTrip.mutateAsync(data);
       router.push(`/trip/${params.id}`);
       router.refresh();
     } catch (error) {
       console.error(error);
       alert("Error updating trip");
-    } finally {
-      setIsSaving(false);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 border-none">
         <div className="text-center">Loading trip...</div>
@@ -77,7 +50,7 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
               initialData={initialData}
               onSubmit={handleSubmit}
               onCancel={() => router.back()}
-              isLoading={isSaving}
+              isLoading={updateTrip.isPending}
             />
           )}
         </div>

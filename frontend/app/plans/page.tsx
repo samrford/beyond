@@ -1,55 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Calendar, MapPin, Search, Trash2 } from "lucide-react";
+import { Plus, Calendar, MapPin, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { usePlans, useDeletePlan } from "@/lib/queries/plans";
+import { getImageUrl } from "@/lib/api";
 
 export default function PlansPage() {
-  const [plans, setPlans] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: plans = [], isLoading } = usePlans();
+  const deletePlan = useDeletePlan();
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const fetchPlans = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/plans`);
-      if (!response.ok) throw new Error("Failed to fetch plans");
-      const data = await response.json();
-      setPlans(data);
-    } catch (error) {
-      console.error("Error fetching plans:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchPlans();
-  }, []);
 
   const handleDelete = async () => {
     if (!deletingId) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/plans/${deletingId}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("Failed to delete plan");
-      setPlans(plans.filter((p) => p.id !== deletingId));
+      await deletePlan.mutateAsync(deletingId);
     } catch (error) {
       console.error("Error deleting plan:", error);
       alert("Failed to delete plan");
     } finally {
       setDeletingId(null);
     }
-  };
-
-  const getImageUrl = (photoPath: string) => {
-    if (!photoPath) return `${API_BASE_URL}/api/image/placeholder`;
-    if (photoPath.startsWith("http")) return photoPath;
-    return `${API_BASE_URL}/api/image/${photoPath}`;
   };
 
   return (
@@ -73,7 +46,7 @@ export default function PlansPage() {
           </Link>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center p-20">
             <p className="text-gray-600 dark:text-gray-400 font-medium">Loading your plans...</p>
           </div>

@@ -3,7 +3,7 @@
 import { useState, FormEvent, useRef } from "react";
 import Image from "next/image";
 import { Upload, X } from "lucide-react";
-import { useUpload } from "@/hooks/useUpload";
+import { useUpload } from "@/app/hooks/useUpload";
 
 interface TripData {
   name: string;
@@ -40,14 +40,14 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     summary: initialData?.summary || "",
   });
   
-  const { uploadFile, isUploading } = useUpload();
+  const { upload, uploading: isUploading } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const url = await uploadFile(file);
+    const url = await upload(file);
     if (url) {
       setFormData((prev) => ({ ...prev, headerPhoto: url }));
     }

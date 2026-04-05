@@ -1,58 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus, Trash2 } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
-
-interface Trip {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  headerPhoto: string;
-  summary: string;
-}
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+import { useTrips, useDeleteTrip } from "@/lib/queries/trips";
+import { getImageUrl } from "@/lib/api";
 
 export default function TripsPage() {
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: trips = [], isLoading } = useTrips();
+  const deleteTrip = useDeleteTrip();
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, tripId: "" });
 
-  useEffect(() => {
-    fetchTrips();
-  }, []);
-
-  const fetchTrips = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/trips`);
-      if (!response.ok) throw new Error("Failed to fetch trips");
-      const data = await response.json();
-      
-      const normalizedTrips: Trip[] = data.map((t: any) => ({
-        id: t.id || t.ID,
-        name: t.name || t.Name,
-        startDate: t.startDate || t.StartDate,
-        endDate: t.endDate || t.EndDate,
-        headerPhoto: t.headerPhoto || t.HeaderPhoto,
-        summary: t.summary || t.Summary,
-      }));
-      
-      setTrips(normalizedTrips);
-
-    } catch (error) {
-      console.error("Error fetching trips:", error);
-      setTrips([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleDelete = (id: string, e: React.MouseEvent) => {
-    e.preventDefault(); // Stop link navigation
+    e.preventDefault();
     setDeleteModal({ isOpen: true, tripId: id });
   };
 
@@ -62,27 +24,14 @@ export default function TripsPage() {
     if (!id) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/trips/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok) {
-        fetchTrips();
-      } else {
-        alert("Failed to delete trip");
-      }
+      await deleteTrip.mutateAsync(id);
     } catch (error) {
       console.error(error);
       alert("Error deleting trip");
     }
   };
 
-  const getImageUrl = (photoPath: string) => {
-    if (!photoPath) return `${API_BASE_URL}/api/image/placeholder`;
-    if (photoPath.startsWith("http")) return photoPath;
-    return `${API_BASE_URL}/api/image/${photoPath}`;
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
@@ -131,7 +80,6 @@ export default function TripsPage() {
                   unoptimized
                 />
               </div>
-
 
               <div className="p-6 relative border-none">
                 <button
