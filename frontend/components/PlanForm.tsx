@@ -15,6 +15,8 @@ import {
   AlignLeft as AlignLeftIcon 
 } from "lucide-react";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 interface PlanFormProps {
   initialData?: any;
   onSubmit: (data: any) => Promise<void>;
@@ -30,10 +32,16 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     coverPhoto: "",
   });
 
+  const getImageUrl = (photoPath: string) => {
+    if (!photoPath) return "";
+    if (photoPath.startsWith("http") || photoPath.startsWith("blob:")) return photoPath;
+    return `${API_BASE_URL}/api/image/${photoPath}`;
+  };
+
   const { upload, uploading, previewUrl } = useUpload();
 
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !formData.name && !formData.coverPhoto) {
       setFormData({
         name: initialData.name || "",
         startDate: initialData.startDate ? new Date(initialData.startDate).toISOString().split('T')[0] : "",
@@ -42,7 +50,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
         coverPhoto: initialData.coverPhoto || "",
       });
     }
-  }, [initialData]);
+  }, [initialData, formData.name, formData.coverPhoto]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -123,11 +131,11 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
            {(previewUrl || formData.coverPhoto) ? (
              <>
                <Image 
-                 src={previewUrl || formData.coverPhoto} 
+                 src={previewUrl || getImageUrl(formData.coverPhoto)} 
                  alt="Preview" 
                  fill
+                 unoptimized
                  className="object-cover group-hover:scale-105 transition-transform duration-500"
-                 unoptimized={!previewUrl} // Allow local MinIO images if they aren't configured in next.config yet (though we did configure it)
                />
                <button 
                  type="button" 

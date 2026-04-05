@@ -3,33 +3,51 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Calendar, MapPin, Search } from "lucide-react";
+import { Plus, Calendar, MapPin, Search, Trash2 } from "lucide-react";
+import ConfirmModal from "@/components/ConfirmModal";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/plans`);
+      if (!response.ok) throw new Error("Failed to fetch plans");
+      const data = await response.json();
+      setPlans(data);
+    } catch (error) {
+      console.error("Error fetching plans:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPlans = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/plans`);
-        if (!response.ok) throw new Error("Failed to fetch plans");
-        const data = await response.json();
-        setPlans(data);
-      } catch (error) {
-        console.error("Error fetching plans:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchPlans();
   }, []);
 
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/plans/${deletingId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) throw new Error("Failed to delete plan");
+      setPlans(plans.filter((p) => p.id !== deletingId));
+    } catch (error) {
+      console.error("Error deleting plan:", error);
+      alert("Failed to delete plan");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const getImageUrl = (photoPath: string) => {
-    if (!photoPath) return "/api/image/placeholder";
+    if (!photoPath) return `${API_BASE_URL}/api/image/placeholder`;
     if (photoPath.startsWith("http")) return photoPath;
     return `${API_BASE_URL}/api/image/${photoPath}`;
   };
@@ -62,36 +80,49 @@ export default function PlansPage() {
         ) : plans.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {plans.map((plan) => (
-              <Link
-                key={plan.id}
-                href={`/plans/${plan.id}`}
-                className="group bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
-              >
-                <div className="relative h-48 overflow-hidden bg-gray-100 dark:bg-gray-700">
-                  <Image
-                    src={getImageUrl(plan.coverPhoto)}
-                    alt={plan.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-lg font-bold text-white line-clamp-1">{plan.name}</h3>
-                    <div className="flex items-center gap-2 text-white/80 text-xs mt-1 font-medium">
-                      <Calendar size={12} />
-                      {new Date(plan.startDate).toLocaleDateString()} - {new Date(plan.endDate).toLocaleDateString()}
+              <div key={plan.id} className="relative group">
+                <Link
+                  href={`/plans/${plan.id}`}
+                  className="block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
+                >
+                  <div className="relative h-48 overflow-hidden bg-gray-100 dark:bg-gray-700">
+                    <Image
+                      src={getImageUrl(plan.coverPhoto)}
+                      alt={plan.name}
+                      fill
+                      unoptimized
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <h3 className="text-lg font-bold text-white line-clamp-1">{plan.name}</h3>
+                      <div className="flex items-center gap-2 text-white/80 text-xs mt-1 font-medium">
+                        <Calendar size={12} />
+                        {new Date(plan.startDate).toLocaleDateString()} - {new Date(plan.endDate).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="p-5">
-                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
-                    {plan.summary || "No summary provided for this adventure."}
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700 flex justify-between items-center text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
-                    View Itinerary →
+                  <div className="p-5">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 leading-relaxed">
+                      {plan.summary || "No summary provided for this adventure."}
+                    </p>
+                    <div className="mt-4 pt-4 border-t border-gray-50 dark:border-gray-700 flex justify-between items-center text-xs font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
+                      View Itinerary →
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDeletingId(plan.id);
+                  }}
+                  className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/90 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:scale-110 active:scale-95"
+                  title="Delete Plan"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
             ))}
           </div>
         ) : (
@@ -110,6 +141,14 @@ export default function PlansPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={!!deletingId}
+        title="Delete Plan"
+        message="Are you sure you want to delete this plan? All associated itinerary items and days will be permanently removed. This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setDeletingId(null)}
+      />
     </main>
   );
 }

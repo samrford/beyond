@@ -15,6 +15,8 @@ interface Trip {
   summary: string;
 }
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+
 export default function TripsPage() {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +28,7 @@ export default function TripsPage() {
 
   const fetchTrips = async () => {
     try {
-      const response = await fetch("http://localhost:8080/api/trips");
+      const response = await fetch(`${API_BASE_URL}/api/trips`);
       if (!response.ok) throw new Error("Failed to fetch trips");
       const data = await response.json();
       
@@ -60,7 +62,7 @@ export default function TripsPage() {
     if (!id) return;
 
     try {
-      const response = await fetch(`http://localhost:8080/api/trips/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/trips/${id}`, {
         method: "DELETE",
       });
       if (response.ok) {
@@ -72,6 +74,12 @@ export default function TripsPage() {
       console.error(error);
       alert("Error deleting trip");
     }
+  };
+
+  const getImageUrl = (photoPath: string) => {
+    if (!photoPath) return `${API_BASE_URL}/api/image/placeholder`;
+    if (photoPath.startsWith("http")) return photoPath;
+    return `${API_BASE_URL}/api/image/${photoPath}`;
   };
 
   if (loading) {
@@ -116,7 +124,7 @@ export default function TripsPage() {
             >
               <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                 <Image
-                  src={trip.headerPhoto}
+                  src={getImageUrl(trip.headerPhoto)}
                   alt={trip.name}
                   fill
                   className="object-cover"
