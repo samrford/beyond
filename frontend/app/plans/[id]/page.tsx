@@ -21,6 +21,8 @@ import {
 } from "@/lib/queries/plans";
 import { apiFetch } from "@/lib/api";
 import toast from "react-hot-toast";
+import LoadingGlobe from "@/components/LoadingGlobe";
+import PageTransition from "@/components/PageTransition";
 
 export default function PlanDetailPage() {
   const params = useParams();
@@ -323,8 +325,8 @@ export default function PlanDetailPage() {
 
   if (isLoading) {
     return (
-      <main className="min-h-screen p-8 bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
-        <p className="text-gray-600 dark:text-gray-400">Loading plan details...</p>
+      <main className="min-h-screen p-8 bg-transparent flex items-center justify-center">
+        <LoadingGlobe message="Building your itinerary..." />
       </main>
     );
   }
@@ -334,9 +336,11 @@ export default function PlanDetailPage() {
   }
 
   return (
-    <main className="h-screen flex flex-col bg-gray-50 dark:bg-gray-900 overflow-hidden">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 shadow-sm z-10 px-6 py-4 flex items-center justify-between flex-shrink-0">
+    <main className="h-screen flex flex-col bg-transparent overflow-hidden">
+      <PageTransition>
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Header */}
+          <header className="bg-white dark:bg-gray-800 shadow-sm z-10 px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <Link
             href="/plans"
@@ -572,6 +576,9 @@ export default function PlanDetailPage() {
           onDelete={handleDeleteItem}
         />
       )}
+
+        </div>
+      </PageTransition>
 
       <ConfirmModal
         isOpen={isDeleting}
