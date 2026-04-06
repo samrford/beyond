@@ -94,18 +94,24 @@ const Sidebar = () => {
 
       <aside className={sidebarClasses}>
         {/* Header */}
-        <div className="p-6 flex items-center justify-between">
-          {isOpen ? (
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary-600 to-rose-600 dark:from-primary-400 dark:to-rose-400 bg-clip-text text-transparent">
-              Beyond
-            </h1>
-          ) : (
-            <div className="w-full flex justify-center">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-rose-600 flex items-center justify-center text-white font-bold text-xl shadow-lg">
-                B
+        <div className="p-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center">
+            {isOpen ? (
+              <img
+                src="/transplogo.png"
+                alt="Beyond Logo"
+                className="h-10 w-auto object-contain"
+              />
+            ) : (
+              <div className="w-full flex justify-center">
+                <img
+                  src="/transplogosmall.png"
+                  alt="B"
+                  className="w-10 h-10 object-contain drop-shadow-md"
+                />
               </div>
-            </div>
-          )}
+            )}
+          </Link>
 
           <button
             onClick={() => setIsOpen(!isOpen)}
@@ -134,10 +140,9 @@ const Sidebar = () => {
                 href={item.href}
                 className={`
                   flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
-                  ${
-                    isActive
-                      ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium shadow-sm"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                  ${isActive
+                    ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium shadow-sm"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                   }
                   ${!isOpen ? "justify-center" : ""}
                 `}
@@ -155,9 +160,8 @@ const Sidebar = () => {
           {/* Theme Selector */}
           {showSettings && (
             <div
-              className={`flex items-center bg-orange-50 dark:bg-orange-900/40 rounded-xl p-1 transition-all duration-300 ${
-                !isOpen ? "flex-col" : "justify-between"
-              }`}
+              className={`flex items-center bg-orange-50 dark:bg-orange-900/40 rounded-xl p-1 transition-all duration-300 ${!isOpen ? "flex-col" : "justify-between"
+                }`}
             >
               {themeOptions.map((opt) => {
                 const Icon = opt.icon;
@@ -169,10 +173,9 @@ const Sidebar = () => {
                     onClick={() => setTheme(opt.id)}
                     className={`
                       p-2 rounded-lg transition-all duration-200 flex-1 flex justify-center
-                      ${
-                        isActive
-                          ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm"
-                          : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                      ${isActive
+                        ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                       }
                     `}
                     title={opt.name}
@@ -188,10 +191,9 @@ const Sidebar = () => {
             onClick={() => setShowSettings(!showSettings)}
             className={`
               w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
-              ${
-                showSettings
-                  ? "bg-gray-100 dark:bg-gray-800 text-primary-600 dark:text-primary-400"
-                  : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+              ${showSettings
+                ? "bg-gray-100 dark:bg-gray-800 text-primary-600 dark:text-primary-400"
+                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
               }
               ${!isOpen ? "justify-center" : ""}
             `}
@@ -207,9 +209,8 @@ const Sidebar = () => {
           {/* User Info */}
           {user && (
             <div
-              className={`flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 ${
-                !isOpen ? "justify-center" : ""
-              }`}
+              className={`flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 ${!isOpen ? "justify-center" : ""
+                }`}
             >
               {/* Avatar */}
               {userAvatar ? (
@@ -236,9 +237,8 @@ const Sidebar = () => {
               {/* Sign Out */}
               <button
                 onClick={signOut}
-                className={`p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0 ${
-                  !isOpen ? "hidden" : ""
-                }`}
+                className={`p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0 ${!isOpen ? "hidden" : ""
+                  }`}
                 title="Sign out"
               >
                 <LogOut size={16} />
@@ -250,9 +250,8 @@ const Sidebar = () => {
 
       {/* Main Content padding spacer */}
       <div
-        className={`hidden lg:block transition-all duration-300 ${
-          isOpen ? "w-64" : "w-20"
-        }`}
+        className={`hidden lg:block transition-all duration-300 ${isOpen ? "w-64" : "w-20"
+          }`}
       />
     </>
   );

@@ -25,11 +25,16 @@ module.exports = {
           'spin-slow': 'spin 8s linear infinite',
           'reverse-spin-slow': 'reverse-spin 12s linear infinite',
           'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+          'reveal-slow': 'reveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards',
         },
         keyframes: {
           'reverse-spin': {
             from: { transform: 'rotate(360deg)' },
             to: { transform: 'rotate(0deg)' },
+          },
+          reveal: {
+            '0%': { opacity: '0', transform: 'translateY(10px) scale(0.95)' },
+            '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
           }
         },
         transitionTimingFunction: {

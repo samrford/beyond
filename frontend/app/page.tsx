@@ -9,8 +9,12 @@ export default function Home() {
       <div className="text-center max-w-4xl z-10">
         <CountdownBadge />
 
-        <h1 className="text-6xl lg:text-8xl font-black mb-8 tracking-tight">
-          Explore <span className="text-gradient">Beyond</span>
+        <h1 className="mb-8">
+          <img
+            src="/transplogo.png"
+            alt="Beyond Logo"
+            className="h-40 lg:h-64 mx-auto drop-shadow-2xl animate-reveal-slow"
+          />
         </h1>
 
         <p className="text-xl lg:text-2xl text-gray-600 dark:text-gray-400 mb-12 max-w-2xl mx-auto leading-relaxed">

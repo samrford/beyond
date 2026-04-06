@@ -26,9 +26,19 @@ interface PlanItemModalProps {
   onClose: () => void;
   onSave: (updatedItem: Partial<PlanItem>) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  onStartLocationSelection?: () => void;
+  isSelectingLocation?: boolean;
 }
 
-export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete }: PlanItemModalProps) {
+export default function PlanItemModal({ 
+  item, 
+  isOpen, 
+  onClose, 
+  onSave, 
+  onDelete,
+  onStartLocationSelection,
+  isSelectingLocation = false
+}: PlanItemModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const extractHHMM = (timeStr: string | null) => {
     if (!timeStr) return "";
@@ -106,8 +116,8 @@ export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete 
   const isScratchpad = !item.planDayId;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+    <div className="absolute inset-0 z-50 flex items-start justify-center p-4 bg-gray-50/90 dark:bg-gray-900/90 backdrop-blur-sm animate-in slide-in-from-left duration-300">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 flex flex-col max-h-full">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <span className="p-1.5 bg-primary-100 dark:bg-primary-900/40 text-primary-600 dark:text-primary-400 rounded-lg">
@@ -188,8 +198,21 @@ export default function PlanItemModal({ item, isOpen, onClose, onSave, onDelete 
           </div>
 
           <div className="grid grid-cols-2 gap-4 p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg border border-gray-100 dark:border-gray-700">
-             <div className="col-span-2 mb-1 flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
-               <Globe size={12} /> Coordinates (Optional)
+             <div className="col-span-2 mb-1 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+               <span className="flex items-center gap-2">
+                 <Globe size={12} /> Coordinates (Optional)
+               </span>
+               <button
+                 type="button"
+                 onClick={onStartLocationSelection}
+                 className={`px-2 py-0.5 rounded transition-colors ${
+                   isSelectingLocation 
+                    ? "bg-primary-500 text-white animate-pulse" 
+                    : "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600"
+                 }`}
+               >
+                 {isSelectingLocation ? "Click on map..." : "Select on map"}
+               </button>
              </div>
              <div>
                <input
