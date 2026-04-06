@@ -1,9 +1,6 @@
 "use client";
 
-import { useState } from "react";
 import dynamic from "next/dynamic";
-import MapboxRoute from "./maps/MapboxRoute";
-import GoogleRoute from "./maps/GoogleRoute";
 import { Map as MapIcon } from "lucide-react";
 
 // Dynamically import Leaflet with no SSR since it requires the window object
@@ -22,73 +19,83 @@ function MapLoading() {
   );
 }
 
-export default function InteractiveMap({ plan, selectedDayId, selectedItemId }: { plan: any, selectedDayId: string | null, selectedItemId: string | null }) {
-  const [activeProvider, setActiveProvider] = useState<"mapbox" | "google" | "osm">("osm");
+// Utility to convert time string to minutes for comparison
+const getTimeInMinutes = (timeStr: string | null) => {
+  if (!timeStr) return null;
+  let timePart = timeStr;
+  if (timeStr.includes("T")) {
+    timePart = timeStr.split("T")[1];
+  }
+  const parts = timePart.split(":");
+  if (parts.length < 2) return null;
+  const h = parseInt(parts[0]);
+  const m = parseInt(parts[1]);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
+};
 
-  // Determine which items to show based on selectedDayId.
-  // If selectedDayId is null, maybe show all assigned items across days, or just empty?
-  // Let's show the specific day's items. If no day selected, show everything.
+// Sort items by time, then by orderIndex
+const sortPlanItems = (items: any[]) => {
+  return [...items].sort((a, b) => {
+    const timeA = getTimeInMinutes(a.startTime);
+    const timeB = getTimeInMinutes(b.startTime);
+
+    if (timeA === null && timeB === null) return (a.orderIndex || 0) - (b.orderIndex || 0);
+    if (timeA === null) return 1;
+    if (timeB === null) return -1;
+    return timeA - timeB;
+  });
+};
+
+export default function InteractiveMap({
+  plan,
+  selectedDayId,
+  selectedItemId,
+  isSelectingLocation = false,
+  onMapClick,
+  onItemSelect
+}: {
+  plan: any,
+  selectedDayId: string | null, 
+  selectedItemId: string | null,
+  isSelectingLocation?: boolean,
+  onMapClick?: (lat: number, lng: number) => void,
+  onItemSelect?: (id: string) => void
+}) {
   const displayItems = () => {
     if (!plan) return [];
+    let rawItems: any[] = [];
+    
     if (selectedDayId) {
       const day = plan.days?.find((d: any) => d.id === selectedDayId);
-      return day?.items || [];
+      rawItems = day?.items || [];
+    } else {
+      // Aggregate all items assigned to days
+      rawItems = (plan.days || []).flatMap((d: any) => d.items || []);
     }
-    // Aggregate all items assigned to days
-    const allAssigned = (plan.days || []).flatMap((d: any) => d.items || []);
-    return allAssigned;
+    
+    // Always sort by time for the map route
+    return sortPlanItems(rawItems);
   };
 
   const items = displayItems();
 
   return (
     <div className="w-full h-full relative rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden bg-gray-100 dark:bg-gray-800 shadow-inner group">
-      
-      {/* Map Renderer Container */}
-      <div className="w-full h-[calc(100%-60px)]">
-        {activeProvider === "mapbox" && <MapboxRoute items={items} selectedItemId={selectedItemId} />}
-        {activeProvider === "google" && <GoogleRoute items={items} selectedItemId={selectedItemId} />}
-        {activeProvider === "osm" && <OSMRoute items={items} selectedItemId={selectedItemId} />}
-      </div>
 
-      {/* Map Selection Controls */}
-      <div className="absolute top-4 left-4 z-[400] flex gap-2">
-        <div className="bg-white dark:bg-gray-800 p-1.5 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 flex gap-1">
-          <button
-            onClick={() => setActiveProvider("mapbox")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              activeProvider === "mapbox"
-                ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-          >
-            MapBox
-          </button>
-          <button
-            onClick={() => setActiveProvider("google")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              activeProvider === "google"
-                ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-          >
-            Google Maps
-          </button>
-          <button
-            onClick={() => setActiveProvider("osm")}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-              activeProvider === "osm"
-                ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400"
-                : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            }`}
-          >
-            OpenStreetMap
-          </button>
-        </div>
+      {/* Map Renderer Container */}
+      <div className={`w-full h-full ${isSelectingLocation ? 'cursor-crosshair' : ''}`}>
+        <OSMRoute
+          items={items}
+          selectedItemId={selectedItemId}
+          onMapClick={onMapClick}
+          isSelectingLocation={isSelectingLocation}
+          onItemSelect={onItemSelect}
+        />
       </div>
 
       {items.length === 0 && (
-        <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+        <div className="absolute inset-0 z-[1000] pointer-events-none flex items-center justify-center">
           <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur px-4 py-2 rounded-lg shadow-sm">
             <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">No locations to display for this view</p>
           </div>
