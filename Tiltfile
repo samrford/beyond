@@ -11,15 +11,16 @@ local_resource(
 local_resource(
   'backend',
   cmd='cd backend && go build -o bin/server ./cmd/server',
-  serve_cmd='cd backend && ./bin/server',
-  env={
-    'DATABASE_URL': 'postgres://beyond:password@localhost:5432/beyond?sslmode=disable',
-    'MINIO_ENDPOINT': 'localhost:9000',
-    'MINIO_USER': 'beyond-admin',
-    'MINIO_PASSWORD': 'beyond-password',
-    'MINIO_PUBLIC_URL': 'http://localhost:9000',
-    'SUPABASE_URL': 'https://zzoxjjkljxbaycmubwog.supabase.co'
-  },
+  serve_cmd='''
+    cd backend && \
+    DATABASE_URL="postgres://beyond:password@localhost:5432/beyond?sslmode=disable" \
+    MINIO_ENDPOINT="localhost:9000" \
+    MINIO_USER="beyond-admin" \
+    MINIO_PASSWORD="beyond-password" \
+    MINIO_PUBLIC_URL="http://localhost:9000" \
+    SUPABASE_URL="https://zzoxjjkljxbaycmubwog.supabase.co" \
+    ./bin/server
+  ''',
   deps=['backend'],
   ignore=['backend/bin']
 )

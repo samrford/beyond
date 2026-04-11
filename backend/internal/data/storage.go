@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -33,24 +34,38 @@ func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, 
 		return nil, err
 	}
 
-	// Ensure bucket exists
-	ctx := context.Background()
-	exists, err := client.BucketExists(ctx, bucket)
-	if err != nil {
-		return nil, err
+	// Ensure bucket exists with retry
+	var exists bool
+	for i := 0; i < 5; i++ {
+		exists, err = client.BucketExists(context.Background(), bucket)
+		if err == nil {
+			break
+		}
+		log.Printf("MinIO Connection Error (attempt %d/5): %v", i+1, err)
+		time.Sleep(2 * time.Second)
 	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to MinIO after retries: %v", err)
+	}
+
+	log.Printf("Successfully connected to MinIO. Checking bucket: %s", bucket)
 	if !exists {
-		err = client.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
+		log.Printf("Bucket %s does not exist, creating it...", bucket)
+		err = client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{})
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create bucket: %v", err)
 		}
 
 		// Set public read policy
 		policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::%s/*"]}]}`, bucket, bucket)
-		err = client.SetBucketPolicy(ctx, bucket, policy)
+		err = client.SetBucketPolicy(context.Background(), bucket, policy)
 		if err != nil {
 			log.Printf("Warning: Failed to set bucket policy: %v", err)
 		}
+		log.Printf("Bucket %s created and configured", bucket)
+	} else {
+		log.Printf("Bucket %s already exists", bucket)
 	}
 
 	return &Storage{
