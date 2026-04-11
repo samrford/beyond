@@ -9,6 +9,10 @@ primary_region = 'lhr'
 [build]
   dockerfile = 'Dockerfile'
 
+[build.args]
+  NEXT_PUBLIC_API_BASE_URL="https://beyond-travel-backend.fly.dev"
+  NEXT_PUBLIC_SUPABASE_URL="https://zzoxjjkljxbaycmubwog.supabase.co"
+
 [http_service]
   internal_port = 3000
   force_https = true
