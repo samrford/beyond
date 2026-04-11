@@ -7,9 +7,14 @@ import { NextResponse } from "next/server";
  * Handles OAuth provider callbacks, email confirmations, and password reset links.
  */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/";
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+  const next = requestUrl.searchParams.get("next") ?? "/";
+
+  // Determine the correct origin for redirect, honoring reverse proxy headers (e.g. Fly.io)
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto") || "http";
+  const origin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : requestUrl.origin;
 
   if (code) {
     const supabase = await createClient();
