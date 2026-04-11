@@ -120,7 +120,11 @@ func main() {
 	plansHandler := handlers.NewPlansHandler(db)
 	planDaysHandler := handlers.NewPlanDaysHandler(db)
 	planItemsHandler := handlers.NewPlanItemsHandler(db)
-	uploadHandler := handlers.NewUploadHandler(storage)
+	var uploader data.FileUploader
+	if storage != nil {
+		uploader = storage
+	}
+	uploadHandler := handlers.NewUploadHandler(uploader)
 
 	// Create server
 	mux := http.NewServeMux()
@@ -177,7 +181,7 @@ func main() {
 
 	mux.HandleFunc("/api/plans/", authed(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/plans/")
-		
+
 		if strings.HasPrefix(path, "days/") {
 			if r.Method == "DELETE" {
 				planDaysHandler.DeletePlanDay(w, r)
@@ -198,7 +202,7 @@ func main() {
 			planDaysHandler.CreatePlanDay(w, r)
 			return
 		}
-		
+
 		if strings.HasSuffix(path, "/items") && r.Method == "POST" {
 			planItemsHandler.CreatePlanItem(w, r)
 			return

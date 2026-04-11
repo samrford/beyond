@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Map,
@@ -97,17 +98,23 @@ const Sidebar = () => {
         <div className="p-4 flex items-center justify-between">
           <Link href="/" className="flex items-center">
             {isOpen ? (
-              <img
+              <Image
                 src="/transplogo.png"
                 alt="Beyond Logo"
+                width={120}
+                height={40}
                 className="h-10 w-auto object-contain"
+                priority
               />
             ) : (
               <div className="w-full flex justify-center">
-                <img
+                <Image
                   src="/transplogosmall.png"
                   alt="B"
+                  width={40}
+                  height={40}
                   className="w-10 h-10 object-contain drop-shadow-md"
+                  priority
                 />
               </div>
             )}
@@ -214,10 +221,13 @@ const Sidebar = () => {
             >
               {/* Avatar */}
               {userAvatar ? (
-                <img
+                <Image
                   src={userAvatar}
                   alt={userName}
+                  width={32}
+                  height={32}
                   className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-2 ring-primary-200 dark:ring-primary-800"
+                  unoptimized
                 />
               ) : (
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-rose-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">

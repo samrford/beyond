@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Compass, Plane, Map, ArrowRight } from "lucide-react";
 import CountdownBadge from "../components/CountdownBadge";
 import StatsBadge from "../components/StatsBadge";
@@ -10,10 +11,13 @@ export default function Home() {
         <CountdownBadge />
 
         <h1 className="mb-8">
-          <img
+          <Image
             src="/transplogo.png"
             alt="Beyond Logo"
-            className="h-40 lg:h-64 mx-auto drop-shadow-2xl animate-reveal-slow"
+            width={400}
+            height={256}
+            className="h-40 lg:h-64 w-auto mx-auto drop-shadow-2xl animate-reveal-slow"
+            priority
           />
         </h1>
 
