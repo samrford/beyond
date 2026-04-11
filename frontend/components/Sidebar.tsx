@@ -255,6 +255,19 @@ const Sidebar = () => {
               </button>
             </div>
           )}
+
+          {/* Version Badge */}
+          <div className="pt-2 flex justify-center pb-1">
+            {isOpen ? (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono tracking-wider">
+                v{process.env.NEXT_PUBLIC_APP_VERSION || "0.0.0"}
+              </span>
+            ) : (
+              <span className="text-[9px] text-gray-400 dark:text-gray-500 font-mono">
+                {process.env.NEXT_PUBLIC_APP_VERSION?.split('.')[0] || "0"}
+              </span>
+            )}
+          </div>
         </div>
       </aside>
 

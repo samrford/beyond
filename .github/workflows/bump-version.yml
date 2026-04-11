@@ -1,0 +1,47 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type (patch=bugfixes, minor=new features, major=breaking)'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # allows the action to push commits and tags back to the repo
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for tags
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Configure Git User
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Run npm version
+        working-directory: ./frontend
+        run: |
+          # This command modifies package.json, commits the change, and creates a tag
+          npm version ${{ inputs.bump_type }} -m "Bump version to %s"
+
+      - name: Push changes and tags
+        run: |
+          # Push the new commit and the newly created tag back to the branch
+          git push origin HEAD --follow-tags
