@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import InteractiveMap from "@/components/InteractiveMap";
 import PlanItemModal from "@/components/PlanItemModal";
@@ -394,6 +394,25 @@ export default function PlanDetailPage() {
               >
                 Edit Plan Info
               </Link>
+              <button
+                onClick={() => {
+                  const exportData = JSON.stringify(plan, null, 2);
+                  const blob = new Blob([exportData], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `plan-${plan.name.toLowerCase().replace(/\s+/g, "-")}.json`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  toast.success("Plan exported successfully!");
+                }}
+                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+              >
+                <Download size={16} />
+                Export JSON
+              </button>
               <button
                 onClick={handleConvert}
                 className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium text-sm transition-colors shadow-sm"
