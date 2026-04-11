@@ -43,12 +43,45 @@ export default function TripsPage() {
     );
   }
 
-  if (trips.length === 0) {
+  if (!trips || trips.length === 0) {
     return (
-      <main className="min-h-screen p-8 bg-transparent">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">No trips found.</p>
-        </div>
+      <main className="min-h-screen p-8 flex items-center justify-center bg-transparent">
+        <PageTransition>
+          <div className="max-w-2xl mx-auto text-center space-y-10">
+            <div className="space-y-6">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight">
+                You don't have any completed trips yet!
+              </h1>
+              <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium max-w-lg mx-auto leading-relaxed">
+                Go on some adventures and get this filled up!
+              </p>
+            </div>
+
+            <div className="relative group max-w-lg mx-auto">
+              <div className="absolute -inset-4 bg-gradient-to-r from-primary-500 to-indigo-500 rounded-3xl opacity-10 group-hover:opacity-20 transition duration-500 blur-2xl"></div>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                <Image
+                  src="/notrips.png"
+                  alt="No trips illustration"
+                  width={800}
+                  height={500}
+                  className="w-full h-auto transition-transform duration-1000 group-hover:scale-105"
+                  priority
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-center pt-4">
+              <Link
+                href="/trips/new"
+                className="inline-flex items-center gap-3 px-10 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-bold text-lg shadow-2xl shadow-primary-500/30 transition-all hover:-translate-y-1 active:scale-95"
+              >
+                <Plus size={24} strokeWidth={2.5} />
+                Create a Trip
+              </Link>
+            </div>
+          </div>
+        </PageTransition>
       </main>
     );
   }

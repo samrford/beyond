@@ -96,7 +96,7 @@ export default function PlansPage() {
       try {
         const content = event.target?.result as string;
         const planData = JSON.parse(content);
-        
+
         // Basic validation
         if (!planData.name || !planData.startDate || !planData.endDate) {
           toast.error("Invalid plan format. Missing required fields.");
@@ -121,7 +121,7 @@ export default function PlansPage() {
           <div className="flex justify-between items-center mb-10">
             <div>
               <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white flex items-center gap-3">
-                 Planning Board
+                Planning Board
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-2 font-medium">
                 Dream up and organize your upcoming adventures.
@@ -164,7 +164,7 @@ export default function PlansPage() {
             <div className="flex justify-center py-20">
               <LoadingGlobe message="Preparing your adventures..." />
             </div>
-          ) : plans.length > 0 ? (
+          ) : (plans && plans.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {plans.map((plan) => (
                 <div key={plan.id} className="relative group">
@@ -213,18 +213,39 @@ export default function PlansPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center p-20 bg-white dark:bg-gray-800 rounded-2xl border-2 border-dashed border-gray-200 dark:border-gray-700">
-              <MapPin className="mx-auto text-gray-300 dark:text-gray-600 mb-4" size={48} />
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-2">No plans yet</h2>
-              <p className="text-gray-500 dark:text-gray-400 mb-8 max-w-sm mx-auto font-medium">
-                Start planning your next destination and we&apos;ll help you organize the details.
-              </p>
-              <Link
-                href="/plans/new"
-                className="inline-block bg-primary-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/20"
-              >
-                Get Started
-              </Link>
+            <div className="max-w-2xl mx-auto text-center space-y-10 py-12">
+              <div className="space-y-6">
+                <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight">
+                  You don&apos;t have any travel plans yet!
+                </h1>
+                <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium max-w-lg mx-auto leading-relaxed">
+                  Start dreaming of your next destination and let&apos;s get organized.
+                </p>
+              </div>
+
+              <div className="relative group max-w-lg mx-auto">
+                <div className="absolute -inset-4 bg-gradient-to-r from-primary-500 to-indigo-500 rounded-3xl opacity-10 group-hover:opacity-20 transition duration-500 blur-2xl"></div>
+                <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                  <Image
+                    src="/notrips.png"
+                    alt="No plans illustration"
+                    width={800}
+                    height={500}
+                    className="w-full h-auto transition-transform duration-1000 group-hover:scale-105"
+                    priority
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-center pt-4">
+                <Link
+                  href="/plans/new"
+                  className="inline-flex items-center gap-3 px-10 py-4 bg-primary-600 hover:bg-primary-700 text-white rounded-2xl font-bold text-lg shadow-2xl shadow-primary-500/30 transition-all hover:-translate-y-1 active:scale-95"
+                >
+                  <Plus size={24} strokeWidth={2.5} />
+                  Start Planning
+                </Link>
+              </div>
             </div>
           )}
         </div>
