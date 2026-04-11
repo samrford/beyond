@@ -167,6 +167,14 @@ func main() {
 		}
 	}))
 
+	mux.HandleFunc("/api/plans/import", authed(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			plansHandler.ImportPlan(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
 	mux.HandleFunc("/api/plans/", authed(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/api/plans/")
 		

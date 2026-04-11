@@ -233,6 +233,114 @@ func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// ImportPlan handles POST /api/plans/import
+func (h *PlansHandler) ImportPlan(w http.ResponseWriter, r *http.Request) {
+	userID := GetUserID(r.Context())
+	var p data.Plan
+	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	tx, err := h.db.Begin()
+	if err != nil {
+		log.Printf("Error starting transaction: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+	defer tx.Rollback()
+
+	// Create new plan
+	newPlanID := uuid.New().String()
+	now := time.Now()
+	_, err = tx.Exec(
+		"INSERT INTO plans (id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+		newPlanID, p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, now, now, userID,
+	)
+	if err != nil {
+		log.Printf("Error inserting plan: %v", err)
+		http.Error(w, "Failed to create plan", http.StatusInternalServerError)
+		return
+	}
+
+	// Insert unassigned items
+	for _, item := range p.Unassigned {
+		newItemID := uuid.New().String()
+		st := sanitizeTime(item.StartTime)
+		_, err = tx.Exec(
+			"INSERT INTO plan_items (id, plan_id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time, start_time, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+			newItemID, newPlanID, nil, item.Name, item.Description, item.Location, item.Latitude, item.Longitude, item.OrderIndex, item.EstimatedTime, st, item.Duration,
+		)
+		if err != nil {
+			log.Printf("Error inserting unassigned item: %v", err)
+			http.Error(w, "Failed to import plan items", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// Insert days and their items
+	for _, day := range p.Days {
+		newDayID := uuid.New().String()
+		_, err = tx.Exec(
+			"INSERT INTO plan_days (id, plan_id, date, notes) VALUES ($1, $2, $3, $4)",
+			newDayID, newPlanID, day.Date, day.Notes,
+		)
+		if err != nil {
+			log.Printf("Error inserting day: %v", err)
+			http.Error(w, "Failed to import plan days", http.StatusInternalServerError)
+			return
+		}
+
+		for _, item := range day.Items {
+			newItemID := uuid.New().String()
+			st := sanitizeTime(item.StartTime)
+			_, err = tx.Exec(
+				"INSERT INTO plan_items (id, plan_id, plan_day_id, name, description, location, latitude, longitude, order_index, estimated_time, start_time, duration) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)",
+				newItemID, newPlanID, newDayID, item.Name, item.Description, item.Location, item.Latitude, item.Longitude, item.OrderIndex, item.EstimatedTime, st, item.Duration,
+			)
+			if err != nil {
+				log.Printf("Error inserting day item: %v", err)
+				http.Error(w, "Failed to import plan day items", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Printf("Error committing transaction: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	p.ID = newPlanID
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(p)
+}
+
+func sanitizeTime(t *string) *string {
+	if t == nil {
+		return nil
+	}
+	s := *t
+	if strings.Contains(s, "T") {
+		parts := strings.Split(s, "T")
+		if len(parts) > 1 {
+			timePart := parts[1]
+			// Strip any Z or offset
+			timePart = strings.TrimSuffix(timePart, "Z")
+			// We only want HH:MM:SS or HH:MM
+			if strings.Contains(timePart, ".") {
+				timePart = strings.Split(timePart, ".")[0]
+			}
+			if len(timePart) > 8 {
+				timePart = timePart[:8]
+			}
+			return &timePart
+		}
+	}
+	return t
+}
+
 // ConvertPlanToTrip handles POST /api/plans/:id/convert
 func (h *PlansHandler) ConvertPlanToTrip(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Convert to Trip is not yet implemented", http.StatusNotImplemented)

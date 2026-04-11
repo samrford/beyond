@@ -1,20 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus, Calendar, MapPin, Trash2 } from "lucide-react";
+import { Plus, Calendar, MapPin, Trash2, Upload, Copy, Check } from "lucide-react";
 import ConfirmModal from "@/components/ConfirmModal";
-import { usePlans, useDeletePlan } from "@/lib/queries/plans";
+import { usePlans, useDeletePlan, useImportPlan } from "@/lib/queries/plans";
 import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
 
+const IMPORT_TEMPLATE = {
+  name: "My Trip to Japan",
+  startDate: "2026-05-01T00:00:00Z",
+  endDate: "2026-05-10T00:00:00Z",
+  summary: "Exploring Tokyo, Kyoto and Osaka.",
+  days: [
+    {
+      date: "2026-05-01T00:00:00Z",
+      notes: "Arrival in Tokyo",
+      items: [
+        {
+          name: "Check into Hotel",
+          description: "Hotel Sunroute Plaza Shinjuku",
+          location: "Shinjuku, Tokyo",
+          latitude: 35.686,
+          longitude: 139.700,
+          orderIndex: 0,
+          startTime: "15:00",
+          duration: 30
+        },
+        {
+          name: "Shinjuku Gyoen National Garden",
+          description: "Stroll through the gardens",
+          location: "Shinjuku, Tokyo",
+          latitude: 35.685,
+          longitude: 139.710,
+          orderIndex: 1,
+          startTime: "16:30",
+          duration: 90
+        }
+      ]
+    }
+  ],
+  unassigned: [
+    {
+      name: "Ramen Dinner Idea",
+      description: "Find a local ramen spot",
+      location: "Active Shinjuku area",
+      orderIndex: 0,
+      duration: 60
+    }
+  ]
+};
+
 export default function PlansPage() {
   const { data: plans = [], isLoading } = usePlans();
   const deletePlan = useDeletePlan();
+  const importPlan = useImportPlan();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDelete = async () => {
     if (!deletingId) return;
@@ -27,6 +74,44 @@ export default function PlansPage() {
     } finally {
       setDeletingId(null);
     }
+  };
+
+  const handleCopyTemplate = () => {
+    navigator.clipboard.writeText(JSON.stringify(IMPORT_TEMPLATE, null, 2));
+    setCopied(true);
+    toast.success("Template copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const content = event.target?.result as string;
+        const planData = JSON.parse(content);
+        
+        // Basic validation
+        if (!planData.name || !planData.startDate || !planData.endDate) {
+          toast.error("Invalid plan format. Missing required fields.");
+          return;
+        }
+
+        await importPlan.mutateAsync(planData);
+        toast.success("Plan imported successfully!");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      } catch (error) {
+        console.error("Error importing plan:", error);
+        toast.error("Failed to import plan. Make sure it's a valid JSON file.");
+      }
+    };
+    reader.readAsText(file);
   };
 
   return (
@@ -42,13 +127,37 @@ export default function PlansPage() {
                 Dream up and organize your upcoming adventures.
               </p>
             </div>
-            <Link
-              href="/plans/new"
-              className="flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-primary-500/30 hover:bg-primary-700 transition-all hover:scale-105 active:scale-95"
-            >
-              <Plus size={20} />
-              New Plan
-            </Link>
+            <div className="flex gap-3">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept=".json"
+                onChange={handleFileChange}
+              />
+              <button
+                onClick={handleCopyTemplate}
+                className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl font-bold transition-all hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95"
+                title="Copy JSON format for AI or external tools"
+              >
+                {copied ? <Check size={20} className="text-green-500" /> : <Copy size={20} />}
+                {copied ? "Copied!" : "Copy Template"}
+              </button>
+              <button
+                onClick={handleImportClick}
+                className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 px-6 py-3 rounded-xl font-bold transition-all hover:bg-gray-50 dark:hover:bg-gray-700 active:scale-95"
+              >
+                <Upload size={20} />
+                Import
+              </button>
+              <Link
+                href="/plans/new"
+                className="flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-primary-500/30 hover:bg-primary-700 transition-all hover:scale-105 active:scale-95"
+              >
+                <Plus size={20} />
+                New Plan
+              </Link>
+            </div>
           </div>
 
           {isLoading ? (

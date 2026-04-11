@@ -166,3 +166,17 @@ export function useConvertPlanToTrip(planId: string) {
       }),
   });
 }
+
+export function useImportPlan() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: any) =>
+      apiFetch<Plan>("/api/plans/import", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: planKeys.all });
+    },
+  });
+}
