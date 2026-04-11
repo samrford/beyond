@@ -27,6 +27,8 @@ jobs:
       - name: Deploy Backend to Fly
         run: flyctl deploy --remote-only
         working-directory: ./backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
   deploy-frontend:
     name: Deploy Frontend
@@ -36,5 +38,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy Frontend to Fly
-        run: flyctl deploy --remote-only
+        run: flyctl deploy --remote-only --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         working-directory: ./frontend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
