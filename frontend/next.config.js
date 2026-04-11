@@ -1,19 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { dev, isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    
     if (dev && !isServer) {
       config.watchOptions = {
         poll: 1000,
         aggregateTimeout: 300,
-      }
-      // Improve hot reload by disabling type checking during dev
-      config.resolve = {
-        ...config.resolve,
-        fallback: {
-          fs: false,
-          net: false,
-          tls: false,
-        },
       }
     }
     return config

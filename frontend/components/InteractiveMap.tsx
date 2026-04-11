@@ -3,8 +3,10 @@
 import dynamic from "next/dynamic";
 import { Map as MapIcon } from "lucide-react";
 
+import 'leaflet/dist/leaflet.css';
+
 // Dynamically import Leaflet with no SSR since it requires the window object
-const OSMRoute = dynamic(() => import("./maps/OSMRoute"), { ssr: false, loading: () => <MapLoading /> });
+const OSMRoute = dynamic(() => import("@/components/maps/OSMRoute"), { ssr: false, loading: () => <MapLoading /> });
 
 function MapLoading() {
   return (

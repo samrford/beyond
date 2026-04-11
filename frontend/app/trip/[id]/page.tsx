@@ -7,18 +7,26 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import CheckpointCard from "@/components/CheckpointCard";
 import ConfirmModal from "@/components/ConfirmModal";
-import { useTrip, useDeleteTrip, useDeleteCheckpoint } from "@/lib/queries/trips";
-import { getImageUrl } from "@/lib/api";
-import toast from "react-hot-toast";
 import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
+import CheckpointModal from "@/components/CheckpointModal";
+import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint } from "@/lib/queries/trips";
+import { getImageUrl } from "@/lib/api";
+import toast from "react-hot-toast";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { data: trip, isLoading } = useTrip(params.id);
   const deleteTripMutation = useDeleteTrip();
   const deleteCheckpointMutation = useDeleteCheckpoint(params.id);
+  const updateCheckpointMutation = useUpdateCheckpoint(params.id);
+  const createCheckpointMutation = useCreateCheckpoint(params.id);
+  
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: "", id: "" });
+  const [editModal, setEditModal] = useState<{ isOpen: boolean; checkpoint: any | null }>({
+    isOpen: false,
+    checkpoint: null,
+  });
 
   const handleDeleteTrip = () => {
     setDeleteModal({ isOpen: true, type: "trip", id: params.id });
@@ -26,6 +34,37 @@ export default function TripPage({ params }: { params: { id: string } }) {
 
   const handleDeleteCheckpoint = (checkpointId: string) => {
     setDeleteModal({ isOpen: true, type: "checkpoint", id: checkpointId });
+  };
+
+  const handleEditCheckpoint = (checkpoint: any) => {
+    setEditModal({ isOpen: true, checkpoint });
+  };
+
+  const handleUpdateCheckpoint = async (data: any) => {
+    if (!editModal.checkpoint) return;
+    
+    try {
+      await updateCheckpointMutation.mutateAsync({
+        checkpointId: editModal.checkpoint.id,
+        data,
+      });
+      toast.success("Checkpoint updated!");
+      setEditModal({ isOpen: false, checkpoint: null });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update checkpoint");
+    }
+  };
+
+  const handleCreateCheckpoint = async (data: any) => {
+    try {
+      await createCheckpointMutation.mutateAsync(data);
+      toast.success("Checkpoint added!");
+      setEditModal({ isOpen: false, checkpoint: null });
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to add checkpoint");
+    }
   };
 
   const confirmDelete = async () => {
@@ -125,13 +164,13 @@ export default function TripPage({ params }: { params: { id: string } }) {
       <div className="max-w-4xl mx-auto px-4 py-8 border-none">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 border-none">Trip Timeline</h2>
-          <Link
-            href={`/trip/${trip.id}/checkpoint/new`}
+          <button
+            onClick={() => setEditModal({ isOpen: true, checkpoint: null })}
             className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-white dark:bg-primary-500 rounded-md hover:bg-primary-700 dark:hover:bg-primary-600 border-none font-medium text-sm transition-colors"
           >
             <Plus size={16} />
             Add Checkpoint
-          </Link>
+          </button>
         </div>
         <div className="space-y-8">
           {trip.checkpoints?.map((checkpoint, index) => (
@@ -141,6 +180,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
               index={index}
               tripId={trip.id}
               onDelete={handleDeleteCheckpoint}
+              onEdit={handleEditCheckpoint}
             />
           ))}
         </div>
@@ -153,6 +193,15 @@ export default function TripPage({ params }: { params: { id: string } }) {
         message={`Are you sure you want to permanently delete this ${deleteModal.type}? This action cannot be undone.`}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteModal({ isOpen: false, type: "", id: "" })}
+      />
+
+      <CheckpointModal
+        isOpen={editModal.isOpen}
+        checkpoint={editModal.checkpoint}
+        title={editModal.checkpoint ? "Edit Checkpoint" : "Add Checkpoint"}
+        onClose={() => setEditModal({ isOpen: false, checkpoint: null })}
+        onSubmit={editModal.checkpoint ? handleUpdateCheckpoint : handleCreateCheckpoint}
+        isSaving={editModal.checkpoint ? updateCheckpointMutation.isPending : createCheckpointMutation.isPending}
       />
     </main>
   );
