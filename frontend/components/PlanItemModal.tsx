@@ -31,6 +31,14 @@ interface PlanItemModalProps {
   isSelectingLocation?: boolean;
 }
 
+const extractHHMM = (timeStr: string | null) => {
+  if (!timeStr) return "";
+  if (timeStr.includes("T")) {
+    return timeStr.split("T")[1].slice(0, 5);
+  }
+  return timeStr.slice(0, 5);
+};
+
 export default function PlanItemModal({
   item,
   isOpen,
@@ -41,13 +49,6 @@ export default function PlanItemModal({
   isSelectingLocation = false
 }: PlanItemModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const extractHHMM = (timeStr: string | null) => {
-    if (!timeStr) return "";
-    if (timeStr.includes("T")) {
-      return timeStr.split("T")[1].slice(0, 5);
-    }
-    return timeStr.slice(0, 5);
-  };
 
   const [formData, setFormData] = useState({
     name: item.name || "",
@@ -74,7 +75,7 @@ export default function PlanItemModal({
       });
       setShowDeleteConfirm(false);
     }
-  }, [isOpen, item.id]); // Limit re-runs to ID changes or opening
+  }, [isOpen, item.id, item.name, item.description, item.location, item.latitude, item.longitude, item.duration, item.startTime]); // Satisfy ESLint while maintaining business logic
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;

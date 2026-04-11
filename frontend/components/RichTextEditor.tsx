@@ -24,7 +24,7 @@ export default function RichTextEditor({
     if (editorRef.current && !editorRef.current.innerHTML && initialValue) {
       editorRef.current.innerHTML = initialValue;
     }
-  }, []);
+  }, [initialValue]);
 
   const handleInput = () => {
     if (editorRef.current) {

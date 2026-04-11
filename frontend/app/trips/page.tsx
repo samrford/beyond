@@ -50,7 +50,7 @@ export default function TripsPage() {
           <div className="max-w-2xl mx-auto text-center space-y-10">
             <div className="space-y-6">
               <h1 className="text-4xl md:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight">
-                You don't have any completed trips yet!
+                You don&apos;t have any completed trips yet!
               </h1>
               <p className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 font-medium max-w-lg mx-auto leading-relaxed">
                 Go on some adventures and get this filled up!
