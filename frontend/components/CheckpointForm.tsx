@@ -246,7 +246,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
           disabled={isLoading}
           className="px-8 py-3 bg-primary-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-primary-500/30 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50"
         >
-          {isLoading ? "Syncing..." : "Commit Changes"}
+          {isLoading ? "Syncing..." : "Save Changes"}
         </button>
       </div>
     </form>

@@ -225,8 +225,8 @@ export default function PlanItemModal({
                 type="button"
                 onClick={onStartLocationSelection}
                 className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${isSelectingLocation
-                    ? "bg-primary-500 text-white animate-pulse"
-                    : "bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 hover:scale-105"
+                  ? "bg-primary-500 text-white animate-pulse"
+                  : "bg-white dark:bg-gray-800 text-primary-600 dark:text-primary-400 border border-primary-200 dark:border-primary-800 hover:scale-105"
                   }`}
               >
                 {isSelectingLocation ? "Click map to set location" : "Select on map"}
@@ -284,7 +284,7 @@ export default function PlanItemModal({
             disabled={saving}
             className="px-8 py-3 bg-primary-600 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] shadow-lg shadow-primary-500/30 hover:bg-primary-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50"
           >
-            {saving ? "Syncing..." : "Commit Activity"}
+            {saving ? "Syncing..." : "Save Activity"}
           </button>
         </div>
 
