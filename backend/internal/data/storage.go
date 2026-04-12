@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net/http"
-	"net/url"
 	"strings"
 
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type FileUploader interface {
@@ -18,20 +18,9 @@ type FileUploader interface {
 }
 
 type Storage struct {
-	client    *minio.Client
+	client    *s3.Client
 	bucket    string
 	publicURL string
-}
-
-type pathAppenderTransport struct {
-	base http.RoundTripper
-	path string
-}
-
-func (t *pathAppenderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Prepend the custom path (e.g. /storage/v1/s3)
-	req.URL.Path = t.path + req.URL.Path
-	return t.base.RoundTrip(req)
 }
 
 func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, error) {
@@ -39,57 +28,43 @@ func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, 
 		return nil, fmt.Errorf("MINIO_ENDPOINT is required")
 	}
 
-	var minioHost string
-	var useSSL bool
-	var basePath string
-
-	if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
-		u, err := url.Parse(endpoint)
-		if err != nil {
-			return nil, fmt.Errorf("invalid MINIO_ENDPOINT: %v", err)
-		}
-		minioHost = u.Host
-		useSSL = u.Scheme == "https"
-		basePath = strings.TrimSuffix(u.Path, "/")
-	} else {
-		minioHost = endpoint
-		useSSL = false // Local dev
+	// Ensure endpoint has protocol
+	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
+		endpoint = "http://" + endpoint
 	}
 
-	opts := &minio.Options{
-		Creds:  credentials.NewStaticV4(user, password, ""),
-		Secure: useSSL,
-	}
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		return aws.Endpoint{
+			URL:           endpoint,
+			SigningRegion: "us-east-1", // Generally accepted standard region for S3-compatible endpoints
+		}, nil
+	})
 
-	if basePath != "" {
-		opts.Transport = &pathAppenderTransport{
-			base: http.DefaultTransport,
-			path: basePath,
-		}
-	}
-
-	client, err := minio.New(minioHost, opts)
+	cfg, err := config.LoadDefaultConfig(context.Background(),
+		config.WithRegion("us-east-1"),
+		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(user, password, "")),
+		config.WithEndpointResolverWithOptions(customResolver),
+	)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to load AWS config: %v", err)
 	}
 
-	// For Supabase, the bucket generally already exists because it's managed in their dashboard,
-	// but we'll try to ensure it exists anyway, suppressing errors.
-	exists, err := client.BucketExists(context.Background(), bucket)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = true
+	})
+
+	// Safely check if bucket exists or warn the user (especially on Supabase where bucket creation is restricted)
+	_, err = client.HeadBucket(context.Background(), &s3.HeadBucketInput{
+		Bucket: aws.String(bucket),
+	})
 	if err != nil {
-		log.Printf("MinIO Connection or Bucket warning: %v. (If using Supabase, ensure the bucket exists in their dashboard)", err)
-	} else if !exists {
-		log.Printf("Bucket %s does not exist, creating it...", bucket)
-		err = client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{})
-		if err != nil {
-			log.Printf("Warning: failed to create bucket: %v. Suppressing error to allow Supabase to handle it.", err)
-		} else {
-			// Set public read policy
-			policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::%s/*"]}]}`, bucket, bucket)
-			client.SetBucketPolicy(context.Background(), bucket, policy)
-		}
+		log.Printf("S3 Bucket Warning: %v. (If using Supabase, ensure the bucket exists in their dashboard)", err)
+		// We can still try to create it, but don't crash if restricted
+		_, _ = client.CreateBucket(context.Background(), &s3.CreateBucketInput{
+			Bucket: aws.String(bucket),
+		})
 	} else {
-		log.Printf("Bucket %s already exists", bucket)
+		log.Printf("Bucket %s found", bucket)
 	}
 
 	return &Storage{
@@ -100,8 +75,11 @@ func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, 
 }
 
 func (s *Storage) UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error) {
-	_, err := s.client.PutObject(ctx, s.bucket, filename, reader, size, minio.PutObjectOptions{
-		ContentType: contentType,
+	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      aws.String(s.bucket),
+		Key:         aws.String(filename),
+		Body:        reader,
+		ContentType: aws.String(contentType),
 	})
 	if err != nil {
 		return "", err
