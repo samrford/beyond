@@ -87,12 +87,17 @@ func main() {
 	defer db.Close()
 
 	// Initialize storage
+	bucket := os.Getenv("S3_BUCKET")
+	if bucket == "" {
+		bucket = "beyond-travel"
+	}
 	storage, err := data.InitStorage(
 		os.Getenv("MINIO_ENDPOINT"),
 		os.Getenv("MINIO_USER"),
 		os.Getenv("MINIO_PASSWORD"),
-		"beyond-travel",
+		bucket,
 		os.Getenv("MINIO_PUBLIC_URL"),
+		os.Getenv("S3_REGION"),
 	)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize storage: %v", err)

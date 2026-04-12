@@ -23,9 +23,13 @@ type Storage struct {
 	publicURL string
 }
 
-func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, error) {
+func InitStorage(endpoint, user, password, bucket, publicURL, region string) (*Storage, error) {
 	if endpoint == "" {
 		return nil, fmt.Errorf("MINIO_ENDPOINT is required")
+	}
+
+	if region == "" {
+		region = "us-east-1"
 	}
 
 	// Ensure endpoint has protocol
@@ -33,15 +37,15 @@ func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, 
 		endpoint = "http://" + endpoint
 	}
 
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, r string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			URL:           endpoint,
-			SigningRegion: "us-east-1", // Generally accepted standard region for S3-compatible endpoints
+			SigningRegion: region,
 		}, nil
 	})
 
 	cfg, err := config.LoadDefaultConfig(context.Background(),
-		config.WithRegion("us-east-1"),
+		config.WithRegion(region),
 		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(user, password, "")),
 		config.WithEndpointResolverWithOptions(customResolver),
 	)
