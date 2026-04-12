@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -21,49 +24,71 @@ type Storage struct {
 	publicURL string
 }
 
+type pathAppenderTransport struct {
+	base http.RoundTripper
+	path string
+}
+
+func (t *pathAppenderTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Prepend the custom path (e.g. /storage/v1/s3)
+	req.URL.Path = t.path + req.URL.Path
+	return t.base.RoundTrip(req)
+}
+
 func InitStorage(endpoint, user, password, bucket, publicURL string) (*Storage, error) {
 	if endpoint == "" {
 		return nil, fmt.Errorf("MINIO_ENDPOINT is required")
 	}
 
-	client, err := minio.New(endpoint, &minio.Options{
+	var minioHost string
+	var useSSL bool
+	var basePath string
+
+	if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
+		u, err := url.Parse(endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("invalid MINIO_ENDPOINT: %v", err)
+		}
+		minioHost = u.Host
+		useSSL = u.Scheme == "https"
+		basePath = strings.TrimSuffix(u.Path, "/")
+	} else {
+		minioHost = endpoint
+		useSSL = false // Local dev
+	}
+
+	opts := &minio.Options{
 		Creds:  credentials.NewStaticV4(user, password, ""),
-		Secure: false, // Set to true if using TLS
-	})
+		Secure: useSSL,
+	}
+
+	if basePath != "" {
+		opts.Transport = &pathAppenderTransport{
+			base: http.DefaultTransport,
+			path: basePath,
+		}
+	}
+
+	client, err := minio.New(minioHost, opts)
 	if err != nil {
 		return nil, err
 	}
 
-	// Ensure bucket exists with retry
-	var exists bool
-	for i := 0; i < 5; i++ {
-		exists, err = client.BucketExists(context.Background(), bucket)
-		if err == nil {
-			break
-		}
-		log.Printf("MinIO Connection Error (attempt %d/5): %v", i+1, err)
-		time.Sleep(2 * time.Second)
-	}
-
+	// For Supabase, the bucket generally already exists because it's managed in their dashboard,
+	// but we'll try to ensure it exists anyway, suppressing errors.
+	exists, err := client.BucketExists(context.Background(), bucket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to MinIO after retries: %v", err)
-	}
-
-	log.Printf("Successfully connected to MinIO. Checking bucket: %s", bucket)
-	if !exists {
+		log.Printf("MinIO Connection or Bucket warning: %v. (If using Supabase, ensure the bucket exists in their dashboard)", err)
+	} else if !exists {
 		log.Printf("Bucket %s does not exist, creating it...", bucket)
 		err = client.MakeBucket(context.Background(), bucket, minio.MakeBucketOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create bucket: %v", err)
+			log.Printf("Warning: failed to create bucket: %v. Suppressing error to allow Supabase to handle it.", err)
+		} else {
+			// Set public read policy
+			policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::%s/*"]}]}`, bucket, bucket)
+			client.SetBucketPolicy(context.Background(), bucket, policy)
 		}
-
-		// Set public read policy
-		policy := fmt.Sprintf(`{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetBucketLocation","s3:ListBucket"],"Resource":["arn:aws:s3:::%s"]},{"Effect":"Allow","Principal":{"AWS":["*"]},"Action":["s3:GetObject"],"Resource":["arn:aws:s3:::%s/*"]}]}`, bucket, bucket)
-		err = client.SetBucketPolicy(context.Background(), bucket, policy)
-		if err != nil {
-			log.Printf("Warning: Failed to set bucket policy: %v", err)
-		}
-		log.Printf("Bucket %s created and configured", bucket)
 	} else {
 		log.Printf("Bucket %s already exists", bucket)
 	}
