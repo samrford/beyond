@@ -13,17 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type FileUploader interface {
+type FileStore interface {
 	UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error)
+	GetFile(ctx context.Context, filename string) (io.ReadCloser, string, error)
 }
 
 type Storage struct {
 	client    *s3.Client
 	bucket    string
-	publicURL string
 }
 
-func InitStorage(endpoint, user, password, bucket, publicURL, region string) (*Storage, error) {
+func InitStorage(endpoint, user, password, bucket, region string) (*Storage, error) {
 	if endpoint == "" {
 		return nil, fmt.Errorf("MINIO_ENDPOINT is required")
 	}
@@ -74,7 +74,6 @@ func InitStorage(endpoint, user, password, bucket, publicURL, region string) (*S
 	return &Storage{
 		client:    client,
 		bucket:    bucket,
-		publicURL: publicURL,
 	}, nil
 }
 
@@ -89,9 +88,23 @@ func (s *Storage) UploadFile(ctx context.Context, filename string, reader io.Rea
 		return "", err
 	}
 
-	if s.publicURL != "" {
-		return fmt.Sprintf("%s/%s/%s", s.publicURL, s.bucket, filename), nil
-	}
+	// Because we are fetching images via the backend, we return our own backend API URL
+	return fmt.Sprintf("/api/image/%s", filename), nil
+}
 
-	return filename, nil
+func (s *Storage) GetFile(ctx context.Context, filename string) (io.ReadCloser, string, error) {
+	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(filename),
+	})
+	if err != nil {
+		return nil, "", err
+	}
+	
+	var contentType string
+	if result.ContentType != nil {
+		contentType = *result.ContentType
+	}
+	
+	return result.Body, contentType, nil
 }

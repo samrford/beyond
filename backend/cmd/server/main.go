@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -31,45 +32,54 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// imageHandler handles image requests with unique SVG placeholders based on path
-func imageHandler(w http.ResponseWriter, r *http.Request) {
-	// Set CORS headers FIRST, before any headers are written
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+// makeImageHandler handles image requests by fetching them from storage
+func makeImageHandler(store data.FileStore) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers FIRST, before any headers are written
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache images for a year
 
-	if r.Method == "OPTIONS" {
-		w.WriteHeader(http.StatusOK)
-		return
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		if r.Method != "GET" {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		if store == nil {
+			http.Error(w, "Storage not configured", http.StatusInternalServerError)
+			return
+		}
+
+		filename := strings.TrimPrefix(r.URL.Path, "/api/image/")
+		if filename == "" {
+			http.Error(w, "No image specified", http.StatusBadRequest)
+			return
+		}
+
+		body, contentType, err := store.GetFile(r.Context(), filename)
+		if err != nil {
+			// Instead of a 404 string, we could log and return 404
+			log.Printf("Failed to get image %s: %v", filename, err)
+			http.Error(w, "Image not found", http.StatusNotFound)
+			return
+		}
+		defer body.Close()
+
+		if contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		} else {
+			// Fallback based on extension or stream
+			w.Header().Set("Content-Type", "image/jpeg")
+		}
+
+		io.Copy(w, body)
 	}
-
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	path := r.URL.Path
-	imageData := generateImageSVG(path)
-
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Write(imageData)
-}
-
-func generateImageSVG(path string) []byte {
-	pathID := strings.TrimPrefix(path, "/api/image/")
-	if pathID == "" {
-		pathID = "default"
-	}
-
-	svg := []byte(`<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
-  <rect width="800" height="600" fill="#f0f0f0"/>
-  <circle cx="400" cy="200" r="100" fill="#e0e0e0"/>
-  <text x="400" y="300" font-family="Arial" font-size="48" text-anchor="middle" fill="#666">` + pathID + `</text>
-  <text x="400" y="360" font-family="Arial" font-size="24" text-anchor="middle" fill="#999">Beyond Travel</text>
-</svg>`)
-
-	return svg
 }
 
 func main() {
@@ -87,17 +97,40 @@ func main() {
 	defer db.Close()
 
 	// Initialize storage
-	bucket := os.Getenv("S3_BUCKET")
+	endpoint := os.Getenv("AWS_ENDPOINT_URL_S3")
+	if endpoint == "" {
+		endpoint = os.Getenv("MINIO_ENDPOINT")
+	}
+
+	user := os.Getenv("AWS_ACCESS_KEY_ID")
+	if user == "" {
+		user = os.Getenv("MINIO_USER")
+	}
+
+	password := os.Getenv("AWS_SECRET_ACCESS_KEY")
+	if password == "" {
+		password = os.Getenv("MINIO_PASSWORD")
+	}
+
+	bucket := os.Getenv("BUCKET_NAME")
+	if bucket == "" {
+		bucket = os.Getenv("S3_BUCKET")
+	}
 	if bucket == "" {
 		bucket = "beyond-travel"
 	}
+
+	region := os.Getenv("AWS_REGION")
+	if region == "" {
+		region = os.Getenv("S3_REGION")
+	}
+
 	storage, err := data.InitStorage(
-		os.Getenv("MINIO_ENDPOINT"),
-		os.Getenv("MINIO_USER"),
-		os.Getenv("MINIO_PASSWORD"),
+		endpoint,
+		user,
+		password,
 		bucket,
-		os.Getenv("MINIO_PUBLIC_URL"),
-		os.Getenv("S3_REGION"),
+		region,
 	)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize storage: %v", err)
@@ -125,7 +158,7 @@ func main() {
 	plansHandler := handlers.NewPlansHandler(db)
 	planDaysHandler := handlers.NewPlanDaysHandler(db)
 	planItemsHandler := handlers.NewPlanItemsHandler(db)
-	var uploader data.FileUploader
+	var uploader data.FileStore
 	if storage != nil {
 		uploader = storage
 	}
@@ -235,8 +268,9 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/image/", imageHandler)
-	mux.HandleFunc("/api/image", imageHandler)
+	realImageHandler := makeImageHandler(storage)
+	mux.HandleFunc("/api/image/", realImageHandler)
+	mux.HandleFunc("/api/image", realImageHandler)
 
 	// Enable CORS for development - catch-all route
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

@@ -12,10 +12,10 @@ import (
 )
 
 type UploadHandler struct {
-	storage data.FileUploader
+	storage data.FileStore
 }
 
-func NewUploadHandler(storage data.FileUploader) *UploadHandler {
+func NewUploadHandler(storage data.FileStore) *UploadHandler {
 	return &UploadHandler{
 		storage: storage,
 	}
