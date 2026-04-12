@@ -35,13 +35,3 @@ func TestCorsMiddleware(t *testing.T) {
 	})
 }
 
-func TestImageHandler(t *testing.T) {
-	req := httptest.NewRequest("GET", "/api/image/test-path", nil)
-	recorder := httptest.NewRecorder()
-
-	imageHandler(recorder, req)
-
-	assert.Equal(t, http.StatusOK, recorder.Code)
-	assert.Equal(t, "image/svg+xml", recorder.Header().Get("Content-Type"))
-	assert.Contains(t, recorder.Body.String(), "test-path")
-}

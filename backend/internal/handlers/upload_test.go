@@ -25,6 +25,15 @@ func (m *MockStorage) UploadFile(ctx context.Context, filename string, reader io
 	return args.String(0), args.Error(1)
 }
 
+func (m *MockStorage) GetFile(ctx context.Context, filename string) (io.ReadCloser, string, error) {
+	args := m.Called(ctx, filename)
+	var rc io.ReadCloser
+	if args.Get(0) != nil {
+		rc = args.Get(0).(io.ReadCloser)
+	}
+	return rc, args.String(1), args.Error(2)
+}
+
 func TestHandleUpload(t *testing.T) {
 	mockStorage := new(MockStorage)
 	h := NewUploadHandler(mockStorage)
