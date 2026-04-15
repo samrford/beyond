@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download, Grid, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import InteractiveMap from "@/components/InteractiveMap";
 import PlanItemModal from "@/components/PlanItemModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import GridModal from "@/components/GridModal";
 import {
   usePlan,
   useDeletePlan,
@@ -45,6 +46,23 @@ export default function PlanDetailPage() {
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
+  const [isGridModalOpen, setIsGridModalOpen] = useState(false);
+
+  const isProgrammaticScroll = useRef(false);
+
+  // Sync scroll with selectedDayId
+  useEffect(() => {
+    if (selectedDayId) {
+      const el = document.getElementById(`day-container-${selectedDayId}`);
+      if (el && el.parentElement) {
+        isProgrammaticScroll.current = true;
+        el.parentElement.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft, behavior: 'smooth' });
+        setTimeout(() => {
+          isProgrammaticScroll.current = false;
+        }, 800);
+      }
+    }
+  }, [selectedDayId]);
 
   const handleMapClick = (lat: number, lng: number) => {
     if (isSelectingLocation && editingItem) {
@@ -272,7 +290,7 @@ export default function PlanDetailPage() {
 
   const formatGap = (minutes: number) => {
     if (minutes < 0) return `⚠️ ${Math.abs(minutes)}m Overlap`;
-    if (minutes === 0) return null;
+    if (minutes === 0) return "No gap";
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
     if (h > 0) return `${h}h ${m > 0 ? `${m}m ` : ""}free`;
@@ -487,23 +505,63 @@ export default function PlanDetailPage() {
                     )}
                   </div>
 
-                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 tracking-wide uppercase text-sm">Itinerary</h2>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 tracking-wide uppercase text-sm flex items-center justify-between">
+                    <div>Itinerary</div>
+                    <div className="flex gap-2">
+                       <button
+                         onClick={() => setIsGridModalOpen(true)}
+                         className="px-3 py-1.5 flex items-center gap-2 text-primary-600 bg-primary-50 dark:text-primary-400 dark:bg-primary-900/20 rounded-md hover:bg-primary-100 dark:hover:bg-primary-900/40 transition-colors font-medium text-sm border border-primary-100 dark:border-primary-800"
+                       >
+                         <Grid size={16} />
+                         Jump to specific day
+                       </button>
+                    </div>
+                  </h2>
 
-                  <div className="space-y-6 pb-20">
+                  <div className="pb-20">
                     {plan.days && plan.days.length > 0 ? (
-                      plan.days.map((day: any, i: number) => (
-                        <div key={day.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                      <div className="relative">
+                        {/* Scrollable Container */}
+                        <div 
+                          className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 pb-4"
+                          onScroll={(e) => {
+                            if (isProgrammaticScroll.current) return;
+                            const container = e.currentTarget;
+                            const scrollPosition = container.scrollLeft;
+                            const index = Math.round(scrollPosition / container.clientWidth);
+                            if (plan.days[index] && plan.days[index].id !== selectedDayId) {
+                               setSelectedDayId(plan.days[index].id);
+                            }
+                          }}
+                        >
+                          {plan.days.map((day: any, i: number) => (
+                            <div 
+                              key={day.id} 
+                              id={`day-container-${day.id}`}
+                              className="min-w-full w-full snap-center flex-shrink-0 self-start bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                            >
                           <div className="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => {
+                                  if (i > 0) setSelectedDayId(plan.days[i-1].id);
+                                }}
+                                disabled={i === 0}
+                                className="p-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-30 transition-colors"
+                              >
+                                <ChevronLeft size={18} />
+                              </button>
                               <h3 className="font-semibold text-gray-800 dark:text-gray-200">
                                 Day {i + 1} - {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
                               </h3>
                               <button
-                                onClick={() => setSelectedDayId(day.id)}
-                                className={`flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-bold rounded-full transition-colors ${selectedDayId === day.id ? "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300 ring-1 ring-primary-500/50" : "bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500"}`}
+                                onClick={() => {
+                                  if (i < plan.days.length - 1) setSelectedDayId(plan.days[i+1].id);
+                                }}
+                                disabled={i === plan.days.length - 1}
+                                className="p-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-30 transition-colors"
                               >
-                                <MapPin size={12} />
-                                {selectedDayId === day.id ? "Viewing Map" : "View on Map"}
+                                <ChevronRight size={18} />
                               </button>
                             </div>
                             {day.notes && <span className="text-xs text-gray-500 truncate max-w-[200px]">{day.notes}</span>}
@@ -581,13 +639,15 @@ export default function PlanDetailPage() {
                                   );
                                 })}
                               </div>
-                            ) : (
-                              <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm italic py-4 pointer-events-none">Drag items here</div>
-                            )}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
+                             ) : (
+                               <div className="h-full flex items-center justify-center text-gray-400 dark:text-gray-500 text-sm italic py-4 pointer-events-none">Drag items here</div>
+                             )}
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 ) : (
                       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
                         <p className="text-gray-500 dark:text-gray-400 mb-4">No days added to this itinerary yet.</p>
                         <button
@@ -641,6 +701,14 @@ export default function PlanDetailPage() {
         message="Are you sure you want to delete this entire plan? This will permanently remove all itinerary items and days. This action cannot be undone."
         onConfirm={handleDeletePlan}
         onCancel={() => setIsDeleting(false)}
+      />
+
+      <GridModal 
+        isOpen={isGridModalOpen}
+        onClose={() => setIsGridModalOpen(false)}
+        days={plan.days || []}
+        onSelectDay={(dayId) => setSelectedDayId(dayId)}
+        selectedDayId={selectedDayId}
       />
     </main>
   );

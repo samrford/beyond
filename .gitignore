@@ -48,3 +48,4 @@ out/
 # Lock files (optional - keep for reproducible builds)
 # package-lock.json
 # go.sum
+frontend/seville.json
