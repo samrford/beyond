@@ -1,4 +1,4 @@
-name: Deploy to Fly.io (Manual)
+name: Deploy to Fly.io
 
 on:
   workflow_dispatch:
@@ -12,6 +12,29 @@ on:
           - all
           - frontend
           - backend
+      app_version:
+        description: 'Version to embed (e.g. 1.2.3). Defaults to latest package.json version if blank.'
+        required: false
+        default: ''
+        type: string
+
+  workflow_call:
+    inputs:
+      target:
+        description: 'Which app to deploy?'
+        required: false
+        default: 'all'
+        type: string
+      app_version:
+        description: 'Version string to embed in both services'
+        required: false
+        default: ''
+        type: string
+    secrets:
+      FLY_API_TOKEN:
+        required: true
+      NEXT_PUBLIC_SUPABASE_ANON_KEY:
+        required: true
 
 env:
   FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -25,7 +48,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy Backend to Fly
-        run: flyctl deploy --remote-only
+        run: |
+          flyctl deploy --remote-only \
+            --build-arg APP_VERSION=${{ inputs.app_version }}
         working-directory: ./backend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -38,7 +63,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
       - name: Deploy Frontend to Fly
-        run: flyctl deploy --remote-only --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          flyctl deploy --remote-only \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }} \
+            --build-arg NEXT_PUBLIC_APP_VERSION=${{ inputs.app_version }}
         working-directory: ./frontend
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

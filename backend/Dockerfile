@@ -15,7 +15,8 @@ RUN go mod download
 COPY . .
 
 # Build the main server
-RUN go build -ldflags="-w -s" -o server ./cmd/server
+ARG APP_VERSION=dev
+RUN go build -ldflags="-w -s -X main.version=${APP_VERSION}" -o server ./cmd/server
 
 # Use a minimal alpine image for the final container
 FROM alpine:3.19

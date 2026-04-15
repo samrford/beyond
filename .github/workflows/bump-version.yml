@@ -1,4 +1,4 @@
-name: Bump Version
+name: Release
 
 on:
   workflow_dispatch:
@@ -14,15 +14,16 @@ on:
           - major
 
 jobs:
-  bump-version:
+  bump-and-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # allows the action to push commits and tags back to the repo
+      contents: write
+    outputs:
+      new_version: ${{ steps.compute_version.outputs.new_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          # Fetch all history for tags
           fetch-depth: 0
 
       - name: Setup Node.js
@@ -35,13 +36,51 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Run npm version
+      - name: Compute new version
+        id: compute_version
+        run: |
+          # Get latest tag (default to v0.0.0 if none exists)
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          VERSION=${LATEST_TAG#v}
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          case "${{ inputs.bump_type }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Bumping $LATEST_TAG → v$NEW_VERSION"
+
+      - name: Update package.json
         working-directory: ./frontend
         run: |
-          # This command modifies package.json, commits the change, and creates a tag
-          npm version ${{ inputs.bump_type }} -m "Bump version to %s"
+          # --no-git-tag-version: we handle the tag via gh release create below
+          npm version ${{ steps.compute_version.outputs.new_version }} --no-git-tag-version
 
-      - name: Push changes and tags
+      - name: Commit and push package.json update
         run: |
-          # Push the new commit and the newly created tag back to the branch
-          git push origin HEAD --follow-tags
+          git add frontend/package.json frontend/package-lock.json
+          git commit -m "chore: release v${{ steps.compute_version.outputs.new_version }}"
+          git push origin HEAD
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.compute_version.outputs.new_version }}" \
+            --title "v${{ steps.compute_version.outputs.new_version }}" \
+            --generate-notes
+
+  deploy:
+    name: Deploy All Services
+    needs: bump-and-release
+    uses: ./.github/workflows/deploy.yml
+    with:
+      target: all
+      app_version: ${{ needs.bump-and-release.outputs.new_version }}
+    secrets:
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}

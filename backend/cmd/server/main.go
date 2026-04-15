@@ -13,6 +13,9 @@ import (
 	"beyond/backend/internal/handlers"
 )
 
+// version is set at build time via -ldflags "-X main.version=x.y.z"
+var version = "dev"
+
 // corsMiddleware adds CORS headers to all responses
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -271,6 +274,11 @@ func main() {
 	realImageHandler := makeImageHandler(storage)
 	mux.HandleFunc("/api/image/", realImageHandler)
 	mux.HandleFunc("/api/image", realImageHandler)
+
+	mux.HandleFunc("/api/version", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"version": version})
+	}))
 
 	// Enable CORS for development - catch-all route
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
