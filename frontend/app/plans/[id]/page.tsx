@@ -538,7 +538,7 @@ export default function PlanDetailPage() {
                             <div 
                               key={day.id} 
                               id={`day-container-${day.id}`}
-                              className="min-w-full w-full snap-center flex-shrink-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                              className="min-w-full w-full snap-center flex-shrink-0 self-start bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
                             >
                           <div className="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <div className="flex items-center gap-3">
