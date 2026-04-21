@@ -69,7 +69,7 @@ func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch checkpoints for the trip
-	cRows, err := h.db.Query("SELECT id, name, location, timestamp, description, photos, journal FROM checkpoints WHERE trip_id = $1 ORDER BY timestamp ASC", id)
+	cRows, err := h.db.Query("SELECT id, name, location, timestamp, description, photos, journal, COALESCE(hero_photo, '') FROM checkpoints WHERE trip_id = $1 ORDER BY timestamp ASC", id)
 	if err != nil {
 		log.Printf("Error querying checkpoints: %v", err)
 		http.Error(w, "Failed to load trip checkpoints", http.StatusInternalServerError)
@@ -80,7 +80,7 @@ func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 	for cRows.Next() {
 		var c data.Checkpoint
 		var photosJSON []byte
-		if err := cRows.Scan(&c.ID, &c.Name, &c.Location, &c.Timestamp, &c.Description, &photosJSON, &c.Journal); err != nil {
+		if err := cRows.Scan(&c.ID, &c.Name, &c.Location, &c.Timestamp, &c.Description, &photosJSON, &c.Journal, &c.HeroPhoto); err != nil {
 			log.Printf("Error scanning checkpoint: %v", err)
 			continue
 		}

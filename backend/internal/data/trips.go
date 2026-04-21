@@ -24,6 +24,7 @@ type Checkpoint struct {
 	Description string    `json:"description"`
 	Photos      []string  `json:"photos"`
 	Journal     string    `json:"journal"`
+	HeroPhoto   string    `json:"heroPhoto"`
 }
 
 
