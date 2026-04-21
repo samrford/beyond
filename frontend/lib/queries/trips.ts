@@ -21,6 +21,7 @@ export interface Checkpoint {
   description: string;
   photos: string[];
   journal: string;
+  heroPhoto?: string;
 }
 
 // ─── Query Keys ──────────────────────────────────────────
