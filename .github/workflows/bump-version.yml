@@ -65,6 +65,7 @@ jobs:
         run: |
           git add frontend/package.json frontend/package-lock.json
           git commit -m "chore: release v${{ steps.compute_version.outputs.new_version }}"
+          git remote set-url origin https://x-access-token:${{ secrets.RELEASE_PAT }}@github.com/${{ github.repository }}
           git push origin HEAD
 
       - name: Create GitHub Release
