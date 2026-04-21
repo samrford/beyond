@@ -1,10 +1,27 @@
 "use client";
 
-import { useState, FormEvent, useRef, useEffect } from "react";
+import { useState, FormEvent, useRef } from "react";
 import Image from "next/image";
-import { Upload, X, Trash2 } from "lucide-react";
+import { Upload, Trash2, Star } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  rectSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useUpload } from "@/app/hooks/useUpload";
+import { getImageUrl } from "@/lib/api";
 import RichTextEditor from "./RichTextEditor";
+import DateTimePicker from "./DateTimePicker";
 
 interface CheckpointData {
   name: string;
@@ -13,6 +30,7 @@ interface CheckpointData {
   description: string;
   photos: string[];
   journal: string;
+  heroPhoto?: string;
 }
 
 interface CheckpointFormProps {
@@ -20,6 +38,69 @@ interface CheckpointFormProps {
   onSubmit: (data: CheckpointData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+}
+
+interface SortablePhotoProps {
+  photo: string;
+  index: number;
+  isHero: boolean;
+  onRemove: () => void;
+  onSetHero: () => void;
+}
+
+function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePhotoProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: photo });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`relative aspect-video rounded-xl overflow-hidden border-2 shadow-sm group touch-none
+        ${isDragging ? "opacity-50 scale-95 z-50" : ""}
+        ${isHero ? "border-primary-400 dark:border-primary-500" : "border-white dark:border-gray-800"}
+      `}
+    >
+      {/* Drag handle covers the whole tile */}
+      <div {...attributes} {...listeners} className="absolute inset-0 cursor-grab active:cursor-grabbing z-10" />
+
+      <Image
+        src={getImageUrl(photo)}
+        alt={`Photo ${index + 1}`}
+        fill
+        className="object-cover transition-transform group-hover:scale-110"
+        unoptimized
+      />
+
+      {/* Hero badge */}
+      {isHero && (
+        <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-2 py-0.5 bg-primary-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow">
+          <Star size={9} fill="currentColor" /> Hero
+        </div>
+      )}
+
+      {/* Set as hero button (non-hero photos only) */}
+      {!isHero && (
+        <button
+          type="button"
+          onClick={onSetHero}
+          className="absolute top-2 left-2 z-20 p-1.5 bg-black/50 text-white rounded-full hover:bg-primary-500 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+          title="Set as hero photo"
+        >
+          <Star size={12} />
+        </button>
+      )}
+
+      {/* Remove button */}
+      <button
+        type="button"
+        onClick={onRemove}
+        className="absolute top-2 right-2 z-20 p-1.5 bg-red-500/90 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
+        title="Remove photo"
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+  );
 }
 
 const formatDatetimeForInput = (dateString?: string) => {
@@ -41,26 +122,40 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     description: initialData?.description || "",
     photos: initialData?.photos || [],
     journal: initialData?.journal || "",
+    heroPhoto: initialData?.heroPhoto || "",
   });
 
   const { upload, uploading: isUploading } = useUpload();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setFormData(prev => {
+        const oldIndex = prev.photos.indexOf(active.id as string);
+        const newIndex = prev.photos.indexOf(over.id as string);
+        return { ...prev, photos: arrayMove(prev.photos, oldIndex, newIndex) };
+      });
+    }
+  };
+
+  const setHeroPhoto = (photo: string) => {
+    setFormData(prev => ({ ...prev, heroPhoto: photo }));
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
 
-    const url = await upload(file);
-    if (url) {
-      setFormData((prev) => ({
-        ...prev,
-        photos: [...prev.photos, url]
-      }));
+    const urls = await Promise.all(files.map(f => upload(f)));
+    const succeeded = urls.filter((u): u is string => !!u);
+    if (succeeded.length) {
+      setFormData(prev => ({ ...prev, photos: [...prev.photos, ...succeeded] }));
     }
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removePhoto = (index: number) => {
@@ -137,14 +232,11 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
             Time
           </label>
           <div className="bg-white dark:bg-gray-800 p-1 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all focus-within:border-primary-500">
-            <input
-              type="datetime-local"
+            <DateTimePicker
               id="timestamp"
-              name="timestamp"
-              required
               value={formData.timestamp}
-              onChange={handleChange}
-              className="w-full bg-transparent px-4 py-3 rounded-xl focus:outline-none text-sm font-medium text-gray-900 dark:text-white"
+              onChange={(v) => setFormData((prev) => ({ ...prev, timestamp: v }))}
+              placeholder="Select date & time"
             />
           </div>
         </div>
@@ -175,45 +267,46 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
           Photos
         </label>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-2">
-          {formData.photos.map((photo, index) => (
-            <div key={index} className="relative aspect-video rounded-xl overflow-hidden border-2 border-white dark:border-gray-800 shadow-sm group">
-              <Image
-                src={photo}
-                alt={`Photo ${index + 1}`}
-                fill
-                className="object-cover transition-transform group-hover:scale-110"
-                unoptimized
-              />
-              <button
-                type="button"
-                onClick={() => removePhoto(index)}
-                className="absolute top-2 right-2 p-1.5 bg-red-500/90 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                title="Remove photo"
-              >
-                <Trash2 size={12} />
-              </button>
-            </div>
-          ))}
+        {formData.photos.length > 0 && (
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold -mb-1">
+            Drag to reorder · First photo is the hero
+          </p>
+        )}
 
-          <div
-            onClick={() => !isUploading && fileInputRef.current?.click()}
-            className={`aspect-video flex flex-col justify-center items-center border-2 border-gray-200 dark:border-gray-700 border-dashed rounded-xl cursor-pointer hover:border-primary-500 hover:bg-white dark:hover:bg-gray-800 transition-all group ${isUploading ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-          >
-            <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-2xl text-gray-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-colors">
-              <Upload size={20} />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={formData.photos} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-2">
+              {formData.photos.map((photo, index) => (
+                <SortablePhoto
+                  key={photo}
+                  photo={photo}
+                  index={index}
+                  isHero={formData.heroPhoto ? photo === formData.heroPhoto : index === 0}
+                  onRemove={() => removePhoto(index)}
+                  onSetHero={() => setHeroPhoto(photo)}
+                />
+              ))}
+
+              <div
+                onClick={() => !isUploading && fileInputRef.current?.click()}
+                className={`aspect-video flex flex-col justify-center items-center border-2 border-gray-200 dark:border-gray-700 border-dashed rounded-xl cursor-pointer hover:border-primary-500 hover:bg-white dark:hover:bg-gray-800 transition-all group ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-2xl text-gray-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-colors">
+                  <Upload size={20} />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
+                  {isUploading ? "Syncing..." : "Add Photo"}
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
-              {isUploading ? "Syncing..." : "Add Photo"}
-            </span>
-          </div>
-        </div>
+          </SortableContext>
+        </DndContext>
         <input
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
           accept="image/*"
+          multiple
           className="hidden"
         />
       </div>

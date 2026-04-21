@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, X, ArrowLeft } from "lucide-react";
 import { getImageUrl } from "@/lib/api";
 
 interface Checkpoint {
@@ -14,6 +14,7 @@ interface Checkpoint {
   description: string;
   photos: string[];
   journal: string;
+  heroPhoto?: string;
 }
 
 interface CheckpointCardProps {
@@ -26,16 +27,52 @@ interface CheckpointCardProps {
 
 export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit }: CheckpointCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  // photo path -> aspect ratio (w/h), populated by preloading when modal opens
+  const [aspectRatios, setAspectRatios] = useState<Map<string, number>>(new Map());
 
-  const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
-  };
+  useEffect(() => {
+    document.body.style.overflow = photoModalOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [photoModalOpen]);
+
+  useEffect(() => {
+    if (!photoModalOpen) return;
+    photos.forEach(photo => {
+      if (aspectRatios.has(photo)) return;
+      const img = new window.Image();
+      img.onload = () => {
+        setAspectRatios(prev => new Map(prev).set(photo, img.naturalWidth / img.naturalHeight));
+      };
+      img.src = getImageUrl(photo);
+    });
+  }, [photoModalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pack photos into rows so each row's total aspect ratio stays near `target`.
+  // The last row uses fixed widths instead of flex-grow to avoid stretching sparse rows.
+  function buildRows(photos: string[], ratios: Map<string, number>, target = 3.5): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
+    let sum = 0;
+    for (const photo of photos) {
+      const r = ratios.get(photo) ?? 1;
+      if (row.length > 0 && sum + r > target) {
+        rows.push(row);
+        row = [photo];
+        sum = r;
+      } else {
+        row.push(photo);
+        sum += r;
+      }
+    }
+    if (row.length > 0) rows.push(row);
+    return rows;
+  }
 
   const stripHtml = (html: string) => {
     if (!html) return "";
-    // Remove tags but keep content
     const clean = html.replace(/<[^>]*>?/gm, ' ');
-    // Decode basic entities
     return clean
       .replace(/&nbsp;/g, ' ')
       .replace(/&amp;/g, '&')
@@ -48,12 +85,17 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
 
   const plainJournal = stripHtml(checkpoint.journal);
   const isLong = plainJournal.length > 120;
-
+  const photos = checkpoint.photos || [];
+  const totalPhotos = photos.length;
+  // photos[0..2] are always shown; slot 4 is overflow if there are more than 4
+  const overflowCount = totalPhotos > 4 ? totalPhotos - 3 : 0;
+  // Hero is the designated heroPhoto, falling back to the first photo
+  const heroPhoto = checkpoint.heroPhoto || photos[0];
 
   return (
     <div className="relative pl-8 border-l-2 border-primary-200 dark:border-primary-800">
       <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary-500 dark:bg-primary-400 cursor-pointer hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors" />
-      
+
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
         <div className="flex items-start justify-between mb-2">
           <div>
@@ -62,14 +104,14 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
           </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-2 text-gray-400">
-              <button 
+              <button
                 onClick={() => onEdit(checkpoint)}
                 className="hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-full transition-colors"
                 title="Edit Checkpoint"
               >
                 <Pencil size={18} />
               </button>
-              <button 
+              <button
                 onClick={() => onDelete(checkpoint.id)}
                 className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors"
                 title="Delete Checkpoint"
@@ -82,44 +124,105 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
             </span>
           </div>
         </div>
-        
-        <p className="text-gray-600 dark:text-gray-300 mb-2">{checkpoint.description}</p>
-        
-        {checkpoint.photos && checkpoint.photos.length > 0 && (
-          <div className="flex gap-2 mb-2 overflow-x-auto pb-2">
-            {checkpoint.photos.map((photo, i) => (
-              <div key={i} className="relative h-32 w-48 flex-shrink-0">
-                <Image
-                  src={getImageUrl(photo)}
-                  alt={`${checkpoint.name} ${i + 1}`}
-                  fill
-                  className="object-cover rounded shadow-sm"
-                  unoptimized
-                />
+
+        <p className="text-gray-600 dark:text-gray-300 mb-3">{checkpoint.description}</p>
+
+        {totalPhotos > 0 && (
+          <div className="flex gap-1.5 rounded-xl overflow-hidden mb-3">
+            {/* Hero — aspect ratio driven by natural image dimensions, no cropping */}
+            <div
+              className="relative overflow-hidden"
+              style={{
+                flex: "3",
+                aspectRatio: String(aspectRatios.get(heroPhoto) ?? 4 / 3),
+              }}
+            >
+              <Image
+                src={getImageUrl(heroPhoto)}
+                alt={`${checkpoint.name} 1`}
+                fill
+                className="object-cover"
+                onLoad={(e) => {
+                  const { naturalWidth, naturalHeight } = e.currentTarget;
+                  if (naturalWidth && naturalHeight)
+                    setAspectRatios(prev => new Map(prev).set(heroPhoto, naturalWidth / naturalHeight));
+                }}
+                unoptimized
+              />
+            </div>
+
+            {/* Sidebar — three stacked thumbnails */}
+            {totalPhotos > 1 && (
+              <div className="flex flex-col flex-[2] gap-1.5">
+                {[1, 2].map((i) =>
+                  photos[i] ? (
+                    <div key={i} className="relative flex-1 overflow-hidden">
+                      <Image
+                        src={getImageUrl(photos[i])}
+                        alt={`${checkpoint.name} ${i + 1}`}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <div key={i} className="flex-1" />
+                  )
+                )}
+
+                {totalPhotos > 3 && (
+                  overflowCount > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoModalOpen(true)}
+                      className="relative flex-1 overflow-hidden"
+                    >
+                      <Image
+                        src={getImageUrl(photos[3])}
+                        alt={`${checkpoint.name} 4`}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">+{overflowCount}</span>
+                      </div>
+                    </button>
+                  ) : (
+                    <div className="relative flex-1 overflow-hidden">
+                      <Image
+                        src={getImageUrl(photos[3])}
+                        alt={`${checkpoint.name} 4`}
+                        fill
+                        className="object-cover"
+                        unoptimized
+                      />
+                    </div>
+                  )
+                )}
               </div>
-            ))}
+            )}
           </div>
         )}
-        
+
         <div className="relative group/journal">
           {isExpanded ? (
-            <div 
+            <div
               className="text-gray-600 dark:text-gray-300 mb-4 text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none animate-fadeIn"
               dangerouslySetInnerHTML={{ __html: checkpoint.journal }}
             />
           ) : (
             <p className="text-gray-500 dark:text-gray-400 italic mb-3 text-sm leading-relaxed">
-              {isLong 
-                ? `${plainJournal.substring(0, 120)}...` 
+              {isLong
+                ? `${plainJournal.substring(0, 120)}...`
                 : plainJournal}
             </p>
           )}
         </div>
-        
-        {/* Expand/Collapse Button */}
+
         {isLong && (
           <button
-            onClick={toggleExpand}
+            onClick={() => setIsExpanded(!isExpanded)}
             className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 text-sm font-medium flex items-center gap-1 transition-colors"
           >
             {isExpanded ? (
@@ -139,29 +242,90 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
             )}
           </button>
         )}
-        
-        {/* Expanded Content - Only Photos since Journal is now handled above */}
-        {isExpanded && checkpoint.photos.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 animate-fadeIn">
-            <div className="mb-4">
-              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">More Photos</h4>
-              <div className="grid grid-cols-2 gap-2">
-                {checkpoint.photos.slice(0, 4).map((photo, i) => (
-                  <div key={i} className="relative h-40 w-full">
-                    <Image
-                      src={getImageUrl(photo)}
-                      alt={`${checkpoint.name} additional ${i + 1}`}
-                      fill
-                      className="object-cover rounded shadow-sm hover:shadow-md transition-shadow"
-                      unoptimized
-                    />
-                  </div>
-                ))}
-              </div>
+      </div>
+
+      {/* Photo gallery modal — rendered via portal to escape ancestor transforms */}
+      {photoModalOpen && createPortal(
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => { setPhotoModalOpen(false); setSelectedPhoto(null); }}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
+              {selectedPhoto ? (
+                <button
+                  onClick={() => setSelectedPhoto(null)}
+                  className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+                >
+                  <ArrowLeft size={16} />
+                  All Photos
+                </button>
+              ) : (
+                <h3 className="font-bold text-gray-900 dark:text-white">{checkpoint.name} — All Photos</h3>
+              )}
+              <button
+                onClick={() => { setPhotoModalOpen(false); setSelectedPhoto(null); }}
+                className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto p-4">
+              {selectedPhoto ? (
+                <Image
+                  src={getImageUrl(selectedPhoto)}
+                  alt={checkpoint.name}
+                  width={0}
+                  height={0}
+                  sizes="100vw"
+                  className="w-full h-auto rounded-lg"
+                  unoptimized
+                />
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {buildRows(photos, aspectRatios).map((row, ri) => {
+                    const rowSum = row.reduce((s, p) => s + (aspectRatios.get(p) ?? 1), 0);
+                    // Distribute gap evenly across items so percentages add to 100%
+                    const gapDeduct = (row.length - 1) * 6 / row.length;
+                    return (
+                      <div key={ri} className="flex gap-1.5">
+                        {row.map((photo, i) => {
+                          const ratio = aspectRatios.get(photo) ?? 1;
+                          return (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setSelectedPhoto(photo)}
+                              style={{
+                                flex: `0 0 calc(${(ratio / rowSum) * 100}% - ${gapDeduct}px)`,
+                                aspectRatio: String(ratio),
+                              }}
+                              className="relative overflow-hidden rounded-lg hover:opacity-90 transition-opacity"
+                            >
+                              <Image
+                                src={getImageUrl(photo)}
+                                alt={`${checkpoint.name} ${i + 1}`}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
