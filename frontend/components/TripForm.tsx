@@ -7,7 +7,7 @@ import { useUpload } from "@/app/hooks/useUpload";
 import { getImageUrl } from "@/lib/api";
 import DatePicker from "./DatePicker";
 
-interface TripData {
+export interface TripData {
   name: string;
   startDate: string;
   endDate: string;

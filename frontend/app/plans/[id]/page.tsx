@@ -17,8 +17,11 @@ import {
   useDeletePlanItem,
   useConvertPlanToTrip,
   planKeys,
+  Plan,
+  PlanDay,
+  PlanItem,
 } from "@/lib/queries/plans";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, ApiError } from "@/lib/api";
 import toast from "react-hot-toast";
 import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
@@ -38,11 +41,11 @@ export default function PlanDetailPage() {
   const convertMutation = useConvertPlanToTrip(id);
 
   // Local state
-  const [plan, setPlan] = useState<any>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [activeDragItem, setActiveDragItem] = useState<any>(null);
+  const [activeDragItem, setActiveDragItem] = useState<PlanItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
@@ -100,7 +103,7 @@ export default function PlanDetailPage() {
     setSelectedItemId(itemId);
     // Find which day this item belongs to and select it if necessary
     if (plan?.days) {
-      const day = plan.days.find((d: any) => d.items?.some((i: any) => i.id === itemId));
+      const day = plan.days.find((d: PlanDay) => d.items?.some((i: PlanItem) => i.id === itemId));
       if (day) setSelectedDayId(day.id);
     }
   };
@@ -119,7 +122,7 @@ export default function PlanDetailPage() {
   };
 
   // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, item: any, source: "scratchpad" | "day", sourceId: string | null) => {
+  const handleDragStart = (e: React.DragEvent, item: PlanItem, source: "scratchpad" | "day", sourceId: string | null) => {
     setActiveDragItem(item);
     e.dataTransfer.setData("text/plain", JSON.stringify({ item, source, sourceId }));
     e.dataTransfer.effectAllowed = "move";
@@ -144,18 +147,18 @@ export default function PlanDetailPage() {
       const newPlan = {
         ...plan,
         unassigned: [...(plan.unassigned || [])],
-        days: (plan.days || []).map((d: any) => ({
+        days: (plan.days || []).map((d: PlanDay) => ({
           ...d,
           items: [...(d.items || [])],
         }))
       };
 
       if (source === "scratchpad") {
-        newPlan.unassigned = newPlan.unassigned.filter((i: any) => i.id !== item.id);
+        newPlan.unassigned = newPlan.unassigned.filter((i: PlanItem) => i.id !== item.id);
       } else {
-        const sourceDayIndex = newPlan.days.findIndex((d: any) => d.id === sourceId);
+        const sourceDayIndex = newPlan.days.findIndex((d: PlanDay) => d.id === sourceId);
         if (sourceDayIndex !== -1) {
-          newPlan.days[sourceDayIndex].items = newPlan.days[sourceDayIndex].items.filter((i: any) => i.id !== item.id);
+          newPlan.days[sourceDayIndex].items = newPlan.days[sourceDayIndex].items.filter((i: PlanItem) => i.id !== item.id);
         }
       }
 
@@ -163,7 +166,7 @@ export default function PlanDetailPage() {
       if (target === "scratchpad") {
         newPlan.unassigned = [...newPlan.unassigned, updatedItem];
       } else {
-        const targetDayIndex = newPlan.days.findIndex((d: any) => d.id === targetId);
+        const targetDayIndex = newPlan.days.findIndex((d: PlanDay) => d.id === targetId);
         if (targetDayIndex !== -1) {
           newPlan.days[targetDayIndex].items = [...newPlan.days[targetDayIndex].items, updatedItem];
         }
@@ -177,7 +180,7 @@ export default function PlanDetailPage() {
     }
   };
 
-  const handleSaveItem = async (updatedFields: any) => {
+  const handleSaveItem = async (updatedFields: Partial<PlanItem>) => {
     if (!editingItem) return;
 
     try {
@@ -195,10 +198,10 @@ export default function PlanDetailPage() {
         await updateItemMutation.mutateAsync(updatedItem);
         const newPlan = {
           ...plan,
-          unassigned: plan.unassigned.map((i: any) => i.id === editingItem.id ? updatedItem : i),
-          days: plan.days.map((d: any) => ({
+          unassigned: plan.unassigned.map((i: PlanItem) => i.id === editingItem.id ? updatedItem : i),
+          days: plan.days.map((d: PlanDay) => ({
             ...d,
-            items: d.items ? d.items.map((i: any) => i.id === editingItem.id ? updatedItem : i) : []
+            items: d.items ? d.items.map((i: PlanItem) => i.id === editingItem.id ? updatedItem : i) : []
           }))
         };
         setPlan(newPlan);
@@ -214,10 +217,10 @@ export default function PlanDetailPage() {
     try {
       await deleteItemMutation.mutateAsync(itemId);
       const newPlan = { ...plan };
-      newPlan.unassigned = newPlan.unassigned.filter((i: any) => i.id !== itemId);
-      newPlan.days = newPlan.days.map((day: any) => ({
+      newPlan.unassigned = newPlan.unassigned.filter((i: PlanItem) => i.id !== itemId);
+      newPlan.days = newPlan.days.map((day: PlanDay) => ({
         ...day,
-        items: day.items ? day.items.filter((i: any) => i.id !== itemId) : []
+        items: day.items ? day.items.filter((i: PlanItem) => i.id !== itemId) : []
       }));
       setPlan(newPlan);
       setEditingItem(null);
@@ -243,12 +246,12 @@ export default function PlanDetailPage() {
     return `${h12}:${mStr.padStart(2, "0")}${ampm}`;
   };
 
-  const getEndTime = (item: any) => {
+  const getEndTime = (item: PlanItem) => {
     if (!item.startTime || !item.duration) return null;
     const startInMinutes = getTimeInMinutes(item.startTime);
     if (startInMinutes === null) return "Invalid Date";
 
-    const endMinutes = startInMinutes + parseInt(item.duration);
+    const endMinutes = startInMinutes + item.duration;
     const h = Math.floor(endMinutes / 60) % 24;
     const m = endMinutes % 60;
     const ampm = h >= 12 ? "PM" : "AM";
@@ -267,7 +270,7 @@ export default function PlanDetailPage() {
     return h * 60 + m;
   };
 
-  const sortItems = (items: any[]) => {
+  const sortItems = (items: PlanItem[]) => {
     return [...items].sort((a, b) => {
       const timeA = getTimeInMinutes(a.startTime);
       const timeB = getTimeInMinutes(b.startTime);
@@ -279,12 +282,12 @@ export default function PlanDetailPage() {
     });
   };
 
-  const calculateGap = (item1: any, item2: any) => {
+  const calculateGap = (item1: PlanItem, item2: PlanItem) => {
     const start1 = getTimeInMinutes(item1.startTime);
     const start2 = getTimeInMinutes(item2.startTime);
     if (start1 === null || start2 === null) return null;
 
-    const end1 = start1 + parseInt(item1.duration || 0);
+    const end1 = start1 + (item1.duration || 0);
     return start2 - end1;
   };
 
@@ -327,19 +330,19 @@ export default function PlanDetailPage() {
         curr.setDate(curr.getDate() + 1);
       }
 
-      const createdDays: any[] = [];
+      const createdDays: PlanDay[] = [];
       for (const date of days) {
-        const newDay = await apiFetch<any>(`/api/plans/${id}/days`, {
+        const newDay = await apiFetch<PlanDay>(`/api/plans/${id}/days`, {
           method: "POST",
           body: JSON.stringify({ date: date.toISOString() }),
         });
         createdDays.push({ ...newDay, items: [] });
       }
 
-      setPlan((prev: any) => ({
+      setPlan((prev: Plan | null) => ({
         ...prev,
         days: createdDays,
-      }));
+      } as Plan));
       queryClient.invalidateQueries({ queryKey: planKeys.detail(id) });
     } catch (error) {
       console.error(error);
@@ -354,8 +357,8 @@ export default function PlanDetailPage() {
       const data = await convertMutation.mutateAsync();
       router.push(`/trip/${data.tripId}`);
       router.refresh();
-    } catch (error: any) {
-      if (error?.status === 501) {
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 501) {
         toast("Feature coming soon!");
       } else {
         console.error(error);
@@ -463,7 +466,7 @@ export default function PlanDetailPage() {
                   >
                     {plan.unassigned && plan.unassigned.length > 0 ? (
                       <div className="space-y-3">
-                        {plan.unassigned.map((item: any) => (
+                        {plan.unassigned.map((item: PlanItem) => (
                           <div
                             key={item.id}
                             id={`item-${item.id}`}
@@ -534,7 +537,7 @@ export default function PlanDetailPage() {
                             }
                           }}
                         >
-                          {plan.days.map((day: any, i: number) => (
+                          {plan.days.map((day: PlanDay, i: number) => (
                             <div 
                               key={day.id} 
                               id={`day-container-${day.id}`}
@@ -573,7 +576,7 @@ export default function PlanDetailPage() {
                           >
                             {day.items && day.items.length > 0 ? (
                               <div className="space-y-4">
-                                {sortItems(day.items).map((item: any, idx: number, sortedArray: any[]) => {
+                                {sortItems(day.items).map((item: PlanItem, idx: number, sortedArray: PlanItem[]) => {
                                   const gap = idx < sortedArray.length - 1 ? calculateGap(item, sortedArray[idx + 1]) : null;
                                   const hasTime = !!item.startTime;
                                   return (

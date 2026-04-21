@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
 import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
+import { TripData } from "@/components/TripForm";
 import toast from "react-hot-toast";
 import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
@@ -22,7 +23,7 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
       }
     : null;
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: TripData) => {
     try {
       await updateTrip.mutateAsync(data);
       toast.success("Trip updated!");

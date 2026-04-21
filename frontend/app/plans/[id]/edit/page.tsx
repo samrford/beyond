@@ -2,7 +2,7 @@
 
 import { useRouter, useParams } from "next/navigation";
 import PlanForm from "@/components/PlanForm";
-import { usePlan, useUpdatePlan } from "@/lib/queries/plans";
+import { usePlan, useUpdatePlan, Plan } from "@/lib/queries/plans";
 import toast from "react-hot-toast";
 import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
@@ -15,7 +15,7 @@ export default function EditPlanPage() {
   const { data: plan, isLoading } = usePlan(id);
   const updatePlan = useUpdatePlan(id);
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: Partial<Plan>) => {
     try {
       await updatePlan.mutateAsync(data);
       toast.success("Plan updated!");

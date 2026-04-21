@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import CheckpointForm from "@/components/CheckpointForm";
 import { useTrip, useUpdateCheckpoint } from "@/lib/queries/trips";
+import { CheckpointData } from "@/components/CheckpointForm";
 import toast from "react-hot-toast";
 import LoadingGlobe from "@/components/LoadingGlobe";
 
@@ -25,7 +26,7 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
       }
     : null;
 
-  const handleSubmit = async (data: any) => {
+  const handleSubmit = async (data: CheckpointData) => {
     try {
       await updateCheckpoint.mutateAsync({
         checkpointId: params.checkpointId,

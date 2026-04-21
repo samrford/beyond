@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import PlanForm from "@/components/PlanForm";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useCreatePlan } from "@/lib/queries/plans";
+import { useCreatePlan, Plan } from "@/lib/queries/plans";
 import toast from "react-hot-toast";
 
 export default function NewPlanPage() {
   const router = useRouter();
   const createPlan = useCreatePlan();
 
-  const handleSubmit = async (formData: any) => {
+  const handleSubmit = async (formData: Partial<Plan>) => {
     try {
       const data = await createPlan.mutateAsync(formData);
       toast.success("Plan created!");

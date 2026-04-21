@@ -2,24 +2,14 @@
 
 import React from "react";
 import { X, Loader2 } from "lucide-react";
-import CheckpointForm from "./CheckpointForm";
-
-interface Checkpoint {
-  id: string;
-  name: string;
-  location: string;
-  timestamp: string;
-  description: string;
-  photos: string[];
-  journal: string;
-  heroPhoto?: string;
-}
+import CheckpointForm, { CheckpointData } from "./CheckpointForm";
+import { Checkpoint } from "@/lib/queries/trips";
 
 interface CheckpointModalProps {
   isOpen: boolean;
   onClose: () => void;
   checkpoint: Checkpoint | null;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: CheckpointData) => Promise<void>;
   isSaving: boolean;
   title: string;
 }

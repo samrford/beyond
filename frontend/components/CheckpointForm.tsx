@@ -23,7 +23,7 @@ import { getImageUrl } from "@/lib/api";
 import RichTextEditor from "./RichTextEditor";
 import DateTimePicker from "./DateTimePicker";
 
-interface CheckpointData {
+export interface CheckpointData {
   name: string;
   location: string;
   timestamp: string;

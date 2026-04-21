@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { Map as MapIcon } from "lucide-react";
+import { Plan, PlanDay, PlanItem } from "@/lib/queries/plans";
 
 import 'leaflet/dist/leaflet.css';
 
@@ -37,7 +38,7 @@ const getTimeInMinutes = (timeStr: string | null) => {
 };
 
 // Sort items by time, then by orderIndex
-const sortPlanItems = (items: any[]) => {
+const sortPlanItems = (items: PlanItem[]) => {
   return [...items].sort((a, b) => {
     const timeA = getTimeInMinutes(a.startTime);
     const timeB = getTimeInMinutes(b.startTime);
@@ -57,8 +58,8 @@ export default function InteractiveMap({
   onMapClick,
   onItemSelect
 }: {
-  plan: any,
-  selectedDayId: string | null, 
+  plan: Plan | null,
+  selectedDayId: string | null,
   selectedItemId: string | null,
   isSelectingLocation?: boolean,
   onMapClick?: (lat: number, lng: number) => void,
@@ -66,14 +67,14 @@ export default function InteractiveMap({
 }) {
   const displayItems = () => {
     if (!plan) return [];
-    let rawItems: any[] = [];
-    
+    let rawItems: PlanItem[] = [];
+
     if (selectedDayId) {
-      const day = plan.days?.find((d: any) => d.id === selectedDayId);
+      const day = plan.days?.find((d: PlanDay) => d.id === selectedDayId);
       rawItems = day?.items || [];
     } else {
       // Aggregate all items assigned to days
-      rawItems = (plan.days || []).flatMap((d: any) => d.items || []);
+      rawItems = (plan.days || []).flatMap((d: PlanDay) => d.items || []);
     }
     
     // Always sort by time for the map route

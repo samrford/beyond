@@ -1,9 +1,10 @@
 import { X } from "lucide-react";
+import { PlanDay } from "@/lib/queries/plans";
 
 interface GridModalProps {
   isOpen: boolean;
   onClose: () => void;
-  days: any[];
+  days: PlanDay[];
   onSelectDay: (dayId: string) => void;
   selectedDayId: string | null;
 }

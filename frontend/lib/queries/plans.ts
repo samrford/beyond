@@ -170,7 +170,7 @@ export function useConvertPlanToTrip(planId: string) {
 export function useImportPlan() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: any) =>
+    mutationFn: (data: Partial<Plan>) =>
       apiFetch<Plan>("/api/plans/import", {
         method: "POST",
         body: JSON.stringify(data),

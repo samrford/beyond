@@ -10,7 +10,8 @@ import ConfirmModal from "@/components/ConfirmModal";
 import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
 import CheckpointModal from "@/components/CheckpointModal";
-import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint } from "@/lib/queries/trips";
+import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint, Checkpoint } from "@/lib/queries/trips";
+import { CheckpointData } from "@/components/CheckpointForm";
 import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 
@@ -23,7 +24,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
   const createCheckpointMutation = useCreateCheckpoint(params.id);
   
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: "", id: "" });
-  const [editModal, setEditModal] = useState<{ isOpen: boolean; checkpoint: any | null }>({
+  const [editModal, setEditModal] = useState<{ isOpen: boolean; checkpoint: Checkpoint | null }>({
     isOpen: false,
     checkpoint: null,
   });
@@ -36,11 +37,11 @@ export default function TripPage({ params }: { params: { id: string } }) {
     setDeleteModal({ isOpen: true, type: "checkpoint", id: checkpointId });
   };
 
-  const handleEditCheckpoint = (checkpoint: any) => {
+  const handleEditCheckpoint = (checkpoint: Checkpoint) => {
     setEditModal({ isOpen: true, checkpoint });
   };
 
-  const handleUpdateCheckpoint = async (data: any) => {
+  const handleUpdateCheckpoint = async (data: CheckpointData) => {
     if (!editModal.checkpoint) return;
     
     try {
@@ -56,7 +57,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
     }
   };
 
-  const handleCreateCheckpoint = async (data: any) => {
+  const handleCreateCheckpoint = async (data: CheckpointData) => {
     try {
       await createCheckpointMutation.mutateAsync(data);
       toast.success("Checkpoint added!");
