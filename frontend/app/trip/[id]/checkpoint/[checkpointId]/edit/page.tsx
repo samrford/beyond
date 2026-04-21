@@ -21,6 +21,7 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
         description: checkpoint.description,
         photos: checkpoint.photos || [],
         journal: checkpoint.journal,
+        heroPhoto: checkpoint.heroPhoto || "",
       }
     : null;
 

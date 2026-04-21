@@ -12,6 +12,7 @@ interface Checkpoint {
   description: string;
   photos: string[];
   journal: string;
+  heroPhoto?: string;
 }
 
 interface CheckpointModalProps {

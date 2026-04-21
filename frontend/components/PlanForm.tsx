@@ -7,14 +7,15 @@ import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 
 // Workaround for import issue if needed, but standardizing on lucide-react
-import { 
-  Upload as UploadIcon, 
-  X as XIcon, 
-  Calendar as CalendarIcon, 
-  MapPin as MapPinIcon, 
-  AlignLeft as AlignLeftIcon 
+import {
+  Upload as UploadIcon,
+  X as XIcon,
+  Calendar as CalendarIcon,
+  MapPin as MapPinIcon,
+  AlignLeft as AlignLeftIcon
 } from "lucide-react";
 import { getImageUrl } from "@/lib/api";
+import DatePicker from "./DatePicker";
 
 interface PlanFormProps {
   initialData?: any;
@@ -93,26 +94,20 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
             <CalendarIcon size={14} /> Start Date
           </label>
-          <input
-            type="date"
-            name="startDate"
-            required
+          <DatePicker
             value={formData.startDate}
-            onChange={handleChange}
-            className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+            onChange={(v) => setFormData((prev) => ({ ...prev, startDate: v }))}
+            placeholder="Select a date"
           />
         </div>
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
             <CalendarIcon size={14} /> End Date
           </label>
-          <input
-            type="date"
-            name="endDate"
-            required
+          <DatePicker
             value={formData.endDate}
-            onChange={handleChange}
-            className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none"
+            onChange={(v) => setFormData((prev) => ({ ...prev, endDate: v }))}
+            placeholder="Select a date"
           />
         </div>
       </div>
