@@ -37,6 +37,7 @@ temp/
 # Next.js specific
 .next/
 out/
+*.tsbuildinfo
 
 # Go specific
 *.exe

@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Polyline, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
+import { PlanItem } from "@/lib/queries/plans";
 
 // Fix leafet default icon issue in React
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -99,7 +100,7 @@ export default function OSMRoute({
   onItemSelect,
   isSelectingLocation = false
 }: {
-  items: any[],
+  items: PlanItem[],
   selectedItemId: string | null,
   onMapClick?: (lat: number, lng: number) => void,
   onItemSelect?: (id: string) => void,

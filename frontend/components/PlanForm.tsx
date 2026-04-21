@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import { getImageUrl } from "@/lib/api";
 import DatePicker from "./DatePicker";
+import { Plan } from "@/lib/queries/plans";
 
 interface PlanFormProps {
-  initialData?: any;
-  onSubmit: (data: any) => Promise<void>;
+  initialData?: Partial<Plan>;
+  onSubmit: (data: Partial<Plan>) => Promise<void>;
   isLoading: boolean;
 }
 
