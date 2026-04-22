@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"beyond/backend/internal/data"
@@ -35,7 +37,10 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// makeImageHandler handles image requests by fetching them from storage
+// makeImageHandler handles image requests by fetching them from storage.
+// Supports ?w=<size> to return a thumbnail fitting within size×size (aspect
+// preserved). Allowed sizes: see data.AllowedThumbnailSizes. Without ?w=,
+// returns the original bytes as stored.
 func makeImageHandler(store data.FileStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers FIRST, before any headers are written
@@ -65,9 +70,24 @@ func makeImageHandler(store data.FileStore) http.HandlerFunc {
 			return
 		}
 
-		body, contentType, err := store.GetFile(r.Context(), filename)
+		var (
+			body        io.ReadCloser
+			contentType string
+			err         error
+		)
+
+		if widthStr := r.URL.Query().Get("w"); widthStr != "" {
+			width, perr := strconv.Atoi(widthStr)
+			if perr != nil || !data.IsAllowedSize(width) {
+				http.Error(w, fmt.Sprintf("Invalid ?w= — allowed sizes: %v", data.AllowedThumbnailSizes), http.StatusBadRequest)
+				return
+			}
+			body, contentType, err = data.GetOrCreateThumbnail(r.Context(), store, filename, width)
+		} else {
+			body, contentType, err = store.GetFile(r.Context(), filename)
+		}
+
 		if err != nil {
-			// Instead of a 404 string, we could log and return 404
 			log.Printf("Failed to get image %s: %v", filename, err)
 			http.Error(w, "Image not found", http.StatusNotFound)
 			return
@@ -77,7 +97,6 @@ func makeImageHandler(store data.FileStore) http.HandlerFunc {
 		if contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		} else {
-			// Fallback based on extension or stream
 			w.Header().Set("Content-Type", "image/jpeg")
 		}
 
@@ -166,6 +185,30 @@ func main() {
 		uploader = storage
 	}
 	uploadHandler := handlers.NewUploadHandler(uploader)
+
+	// Google Photos integration (optional — only enabled if env vars present)
+	var googleAuthHandler *handlers.GoogleAuthHandler
+	var googlePhotosHandler *handlers.GooglePhotosHandler
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+	googleEncKey := os.Getenv("GOOGLE_TOKEN_ENCRYPTION_KEY")
+	if googleClientID != "" && googleClientSecret != "" && googleRedirectURL != "" && googleEncKey != "" && uploader != nil {
+		tokenStore, err := data.NewGoogleTokenStore(db, googleEncKey)
+		if err != nil {
+			log.Fatalf("Failed to init Google token store: %v", err)
+		}
+		importStore := data.NewGoogleImportStore(db)
+		oauthCfg := handlers.NewGoogleOAuthConfig(googleClientID, googleClientSecret, googleRedirectURL)
+		googleAuthHandler = handlers.NewGoogleAuthHandler(oauthCfg, tokenStore)
+		googlePhotosHandler = handlers.NewGooglePhotosHandler(oauthCfg, tokenStore, importStore, uploader)
+		workerCtx, cancelWorker := context.WithCancel(context.Background())
+		defer cancelWorker()
+		go googlePhotosHandler.RunWorker(workerCtx)
+		log.Println("Google Photos integration enabled")
+	} else {
+		log.Println("Google Photos integration disabled (missing env vars)")
+	}
 
 	// Create server
 	mux := http.NewServeMux()
@@ -274,6 +317,65 @@ func main() {
 	realImageHandler := makeImageHandler(storage)
 	mux.HandleFunc("/api/image/", realImageHandler)
 	mux.HandleFunc("/api/image", realImageHandler)
+
+	// Google Photos routes — only mounted if the integration is configured.
+	if googleAuthHandler != nil && googlePhotosHandler != nil {
+		mux.HandleFunc("/api/integrations/google/connect", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				googleAuthHandler.Connect(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+
+		// Callback is hit by the browser directly after Google redirects — no Bearer token.
+		mux.HandleFunc("/api/integrations/google/callback", corsMiddleware(googleAuthHandler.Callback))
+
+		mux.HandleFunc("/api/integrations/google/status", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "GET" {
+				googleAuthHandler.Status(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+
+		mux.HandleFunc("/api/integrations/google", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "DELETE" {
+				googleAuthHandler.Disconnect(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+
+		mux.HandleFunc("/api/google-photos/sessions", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				googlePhotosHandler.CreateSession(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+
+		mux.HandleFunc("/api/google-photos/sessions/", authed(func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/api/google-photos/sessions/")
+			if strings.HasSuffix(path, "/import") && r.Method == "POST" {
+				googlePhotosHandler.StartImport(w, r)
+				return
+			}
+			if r.Method == "GET" {
+				googlePhotosHandler.PollSession(w, r)
+				return
+			}
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}))
+
+		mux.HandleFunc("/api/google-photos/imports/", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "GET" {
+				googlePhotosHandler.GetImport(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+	}
 
 	mux.HandleFunc("/api/version", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
