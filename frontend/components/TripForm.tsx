@@ -6,6 +6,7 @@ import { Upload, X, Calendar, AlignLeft } from "lucide-react";
 import { useUpload } from "@/app/hooks/useUpload";
 import { getImageUrl } from "@/lib/api";
 import DatePicker from "./DatePicker";
+import GooglePhotosPicker from "./GooglePhotosPicker";
 
 export interface TripData {
   name: string;
@@ -123,7 +124,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
           {formData.headerPhoto ? (
             <>
               <Image
-                src={getImageUrl(formData.headerPhoto)}
+                src={getImageUrl(formData.headerPhoto, 1600)}
                 alt="Header Preview"
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
@@ -151,6 +152,16 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
             accept="image/*"
             disabled={isUploading}
             className="absolute inset-0 opacity-0 cursor-pointer"
+          />
+        </div>
+        <div className="mt-2 flex justify-end">
+          <GooglePhotosPicker
+            maxItems={1}
+            onSelect={(urls) => {
+              if (urls[0]) {
+                setFormData((prev) => ({ ...prev, headerPhoto: urls[0] }));
+              }
+            }}
           />
         </div>
       </div>

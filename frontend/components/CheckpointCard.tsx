@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
-import { Pencil, Trash2, X, ArrowLeft } from "lucide-react";
+import { Pencil, Trash2, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import { getImageUrl } from "@/lib/api";
 
 interface Checkpoint {
@@ -29,6 +29,10 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
   const [isExpanded, setIsExpanded] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [fitToScreen, setFitToScreen] = useState(true);
+
+  const openPhoto = (photo: string) => { setSelectedPhoto(photo); setFitToScreen(true); };
+  const closePhoto = () => { setSelectedPhoto(null); setFitToScreen(true); };
   // photo path -> aspect ratio (w/h), populated by preloading when modal opens
   const [aspectRatios, setAspectRatios] = useState<Map<string, number>>(new Map());
 
@@ -45,7 +49,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
       img.onload = () => {
         setAspectRatios(prev => new Map(prev).set(photo, img.naturalWidth / img.naturalHeight));
       };
-      img.src = getImageUrl(photo);
+      img.src = getImageUrl(photo, 400);
     });
   }, [photoModalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,7 +142,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
               }}
             >
               <Image
-                src={getImageUrl(heroPhoto)}
+                src={getImageUrl(heroPhoto, 1600)}
                 alt={`${checkpoint.name} 1`}
                 fill
                 className="object-cover"
@@ -158,7 +162,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                   photos[i] ? (
                     <div key={i} className="relative flex-1 overflow-hidden">
                       <Image
-                        src={getImageUrl(photos[i])}
+                        src={getImageUrl(photos[i], 400)}
                         alt={`${checkpoint.name} ${i + 1}`}
                         fill
                         className="object-cover"
@@ -178,7 +182,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                       className="relative flex-1 overflow-hidden"
                     >
                       <Image
-                        src={getImageUrl(photos[3])}
+                        src={getImageUrl(photos[3], 400)}
                         alt={`${checkpoint.name} 4`}
                         fill
                         className="object-cover"
@@ -191,7 +195,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                   ) : (
                     <div className="relative flex-1 overflow-hidden">
                       <Image
-                        src={getImageUrl(photos[3])}
+                        src={getImageUrl(photos[3], 400)}
                         alt={`${checkpoint.name} 4`}
                         fill
                         className="object-cover"
@@ -248,16 +252,16 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
       {photoModalOpen && createPortal(
         <div
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => { setPhotoModalOpen(false); setSelectedPhoto(null); }}
+          onClick={() => { setPhotoModalOpen(false); closePhoto(); }}
         >
           <div
-            className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col"
+            className={`bg-white dark:bg-gray-900 rounded-2xl w-full overflow-hidden flex flex-col transition-all duration-200 ${selectedPhoto ? "max-w-[95vw] max-h-[95vh]" : "max-w-5xl max-h-[90vh]"}`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
               {selectedPhoto ? (
                 <button
-                  onClick={() => setSelectedPhoto(null)}
+                  onClick={closePhoto}
                   className="flex items-center gap-2 text-sm font-medium text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                 >
                   <ArrowLeft size={16} />
@@ -266,23 +270,34 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
               ) : (
                 <h3 className="font-bold text-gray-900 dark:text-white">{checkpoint.name} — All Photos</h3>
               )}
-              <button
-                onClick={() => { setPhotoModalOpen(false); setSelectedPhoto(null); }}
-                className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <X size={20} />
-              </button>
+              <div className="flex items-center gap-1">
+                {selectedPhoto && (
+                  <button
+                    onClick={() => setFitToScreen(f => !f)}
+                    className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                    title={fitToScreen ? "View full size" : "Fit to screen"}
+                  >
+                    {fitToScreen ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
+                  </button>
+                )}
+                <button
+                  onClick={() => { setPhotoModalOpen(false); closePhoto(); }}
+                  className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
             </div>
 
-            <div className="overflow-y-auto p-4">
+            <div className={selectedPhoto && fitToScreen ? "flex items-center justify-center p-4 min-h-0 flex-1" : "overflow-y-auto p-4"}>
               {selectedPhoto ? (
                 <Image
-                  src={getImageUrl(selectedPhoto)}
+                  src={getImageUrl(selectedPhoto, 2400)}
                   alt={checkpoint.name}
                   width={0}
                   height={0}
-                  sizes="100vw"
-                  className="w-full h-auto rounded-lg"
+                  sizes="95vw"
+                  className={fitToScreen ? "max-h-[calc(95vh-80px)] w-auto max-w-full rounded-lg object-contain" : "w-full h-auto rounded-lg"}
                   unoptimized
                 />
               ) : (
@@ -299,7 +314,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                             <button
                               key={i}
                               type="button"
-                              onClick={() => setSelectedPhoto(photo)}
+                              onClick={() => openPhoto(photo)}
                               style={{
                                 flex: `0 0 calc(${(ratio / rowSum) * 100}% - ${gapDeduct}px)`,
                                 aspectRatio: String(ratio),
@@ -307,7 +322,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                               className="relative overflow-hidden rounded-lg hover:opacity-90 transition-opacity"
                             >
                               <Image
-                                src={getImageUrl(photo)}
+                                src={getImageUrl(photo, 800)}
                                 alt={`${checkpoint.name} ${i + 1}`}
                                 fill
                                 className="object-cover"

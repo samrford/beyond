@@ -22,6 +22,7 @@ import { useUpload } from "@/app/hooks/useUpload";
 import { getImageUrl } from "@/lib/api";
 import RichTextEditor from "./RichTextEditor";
 import DateTimePicker from "./DateTimePicker";
+import GooglePhotosPicker from "./GooglePhotosPicker";
 
 export interface CheckpointData {
   name: string;
@@ -64,7 +65,7 @@ function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePh
       <div {...attributes} {...listeners} className="absolute inset-0 cursor-grab active:cursor-grabbing z-10" />
 
       <Image
-        src={getImageUrl(photo)}
+        src={getImageUrl(photo, 800)}
         alt={`Photo ${index + 1}`}
         fill
         className="object-cover transition-transform group-hover:scale-110"
@@ -309,6 +310,18 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
           multiple
           className="hidden"
         />
+
+        <div className="flex justify-end">
+          <GooglePhotosPicker
+            onSelect={(urls) => {
+              if (!urls.length) return;
+              setFormData((prev) => ({
+                ...prev,
+                photos: [...prev.photos, ...urls],
+              }));
+            }}
+          />
+        </div>
       </div>
 
       {/* Journal Entry (Rich Text) */}

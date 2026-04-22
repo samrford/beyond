@@ -89,16 +89,30 @@ export async function apiUpload<T>(
 }
 
 /**
+ * Allowed thumbnail sizes (must match backend data.AllowedThumbnailSizes).
+ * Requesting a size outside this list will 400.
+ */
+export type ThumbnailWidth = 400 | 800 | 1600 | 2400;
+
+/**
  * Centralised image URL resolver.
  * Handles empty paths (placeholder), absolute URLs, and relative paths.
+ *
+ * Pass `w` to request a server-side thumbnail (aspect preserved, fit within
+ * w×w). Originals stay untouched in storage — this only affects delivery.
+ * External URLs (blob:, https://) are returned as-is regardless of `w`.
  */
-export function getImageUrl(photoPath: string | undefined | null): string {
+export function getImageUrl(
+  photoPath: string | undefined | null,
+  w?: ThumbnailWidth
+): string {
   if (!photoPath) return `${API_BASE_URL}/api/image/placeholder`;
   if (photoPath.startsWith("http") || photoPath.startsWith("blob:"))
     return photoPath;
+  const query = w ? `?w=${w}` : "";
   if (photoPath.startsWith("/api/image"))
-    return `${API_BASE_URL}${photoPath}`;
-  return `${API_BASE_URL}/api/image/${photoPath}`;
+    return `${API_BASE_URL}${photoPath}${query}`;
+  return `${API_BASE_URL}/api/image/${photoPath}${query}`;
 }
 
 /**

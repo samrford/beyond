@@ -115,7 +115,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
         {/* Header Section */}
       <div className="relative h-64 bg-gray-300 dark:bg-gray-800">
         <Image
-          src={getImageUrl(trip.headerPhoto)}
+          src={getImageUrl(trip.headerPhoto, 2400)}
           alt={trip.name}
           fill
           className="object-cover"
