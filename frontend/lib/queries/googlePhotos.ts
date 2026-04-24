@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api";
 
 export interface GoogleStatus {
@@ -53,9 +53,13 @@ export function useGoogleConnect() {
 }
 
 export function useGoogleDisconnect() {
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
       apiFetch<void>("/api/integrations/google", { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: googleKeys.status });
+    },
   });
 }
 

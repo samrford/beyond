@@ -2,7 +2,7 @@
 
 import { useState, FormEvent, useRef } from "react";
 import Image from "next/image";
-import { Upload, Trash2, Star } from "lucide-react";
+import { Monitor, Trash2, Star } from "lucide-react";
 import {
   DndContext,
   closestCenter,
@@ -268,6 +268,43 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
           Photos
         </label>
 
+        <div className="rounded-2xl border-2 border-gray-100 dark:border-gray-800 p-4 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+            Add more photos
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => !isUploading && fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="aspect-video flex flex-col items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all disabled:opacity-50"
+            >
+              <Monitor size={22} />
+              <span className="text-xs font-bold">
+                {isUploading ? "Uploading…" : "From your computer"}
+              </span>
+            </button>
+            <GooglePhotosPicker
+              variant="card"
+              onSelect={(urls) => {
+                if (!urls.length) return;
+                setFormData((prev) => ({
+                  ...prev,
+                  photos: [...prev.photos, ...urls],
+                }));
+              }}
+            />
+          </div>
+        </div>
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept="image/*"
+          multiple
+          className="hidden"
+        />
+
         {formData.photos.length > 0 && (
           <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold -mb-1">
             Drag to reorder · First photo is the hero
@@ -287,41 +324,9 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
                   onSetHero={() => setHeroPhoto(photo)}
                 />
               ))}
-
-              <div
-                onClick={() => !isUploading && fileInputRef.current?.click()}
-                className={`aspect-video flex flex-col justify-center items-center border-2 border-gray-200 dark:border-gray-700 border-dashed rounded-xl cursor-pointer hover:border-primary-500 hover:bg-white dark:hover:bg-gray-800 transition-all group ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-2xl text-gray-400 group-hover:text-primary-500 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-colors">
-                  <Upload size={20} />
-                </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 mt-2">
-                  {isUploading ? "Syncing..." : "Add Photo"}
-                </span>
-              </div>
             </div>
           </SortableContext>
         </DndContext>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          accept="image/*"
-          multiple
-          className="hidden"
-        />
-
-        <div className="flex justify-end">
-          <GooglePhotosPicker
-            onSelect={(urls) => {
-              if (!urls.length) return;
-              setFormData((prev) => ({
-                ...prev,
-                photos: [...prev.photos, ...urls],
-              }));
-            }}
-          />
-        </div>
       </div>
 
       {/* Journal Entry (Rich Text) */}

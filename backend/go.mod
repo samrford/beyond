@@ -9,9 +9,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.14
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.99.0
 	github.com/coreos/go-oidc/v3 v3.17.0
+	github.com/disintegration/imaging v1.6.2
 	github.com/google/uuid v1.6.0
-	github.com/lib/pq v1.12.2
+	github.com/lib/pq v1.12.3
 	github.com/pressly/goose/v3 v3.27.0
+	github.com/samrford/google-photos-picker v0.1.0
 	github.com/stretchr/testify v1.11.1
 )
 
@@ -33,7 +35,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.10 // indirect
 	github.com/aws/smithy-go v1.24.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/disintegration/imaging v1.6.2 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/mfridman/interpolate v0.0.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

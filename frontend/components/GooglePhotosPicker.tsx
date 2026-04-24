@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Image as ImageIcon, Link as LinkIcon } from "lucide-react";
+import { Link as LinkIcon, Unlink } from "lucide-react";
 import {
   useCreatePickerSession,
   useGoogleConnect,
+  useGoogleDisconnect,
   useGoogleStatus,
   useImportJob,
   usePickerSessionStatus,
@@ -20,8 +21,10 @@ type Phase =
 
 interface GooglePhotosPickerProps {
   onSelect: (imageUrls: string[]) => void;
-  buttonLabel?: string;
   className?: string;
+  /** "card" renders a chunky aspect-video tile (used in CheckpointForm photo grid).
+   *  "button" (default) renders a compact inline button. */
+  variant?: "button" | "card";
   /** Cap the number of photos passed to onSelect. If the user picks more in
    *  Google's UI we keep the first `maxItems`. No cap by default. */
   maxItems?: number;
@@ -29,12 +32,13 @@ interface GooglePhotosPickerProps {
 
 export default function GooglePhotosPicker({
   onSelect,
-  buttonLabel = "Google Photos",
   className = "",
+  variant = "button",
   maxItems,
 }: GooglePhotosPickerProps) {
   const status = useGoogleStatus();
   const connect = useGoogleConnect();
+  const disconnect = useGoogleDisconnect();
   const createSession = useCreatePickerSession();
   const startImport = useStartImport();
 
@@ -158,39 +162,80 @@ export default function GooglePhotosPicker({
     phase === "picking" ||
     phase === "importing";
 
+  const connected = !!status.data?.connected;
+  const connectedIdle = connected && phase === "idle";
+
   const label = (() => {
-    if (!status.data?.connected) return `Connect ${buttonLabel}`;
-    if (phase === "picking") return "Waiting for Google…";
+    if (!connected) return "Connect Google Photos account";
     if (phase === "importing" && job.data) {
       return `Importing ${job.data.completed}/${job.data.total || "…"}`;
     }
     if (phase === "importing") return "Starting import…";
     if (phase === "done") return "Imported!";
-    return buttonLabel;
+    return "From Google Photos";
   })();
 
   const hint = (() => {
-    if (!status.data?.connected || phase !== "idle") return null;
+    if (!connected || phase !== "idle") return null;
     if (maxItems === 1) return "Select 1 photo in Google Photos";
     if (maxItems && maxItems > 1) return `Select up to ${maxItems} photos`;
     return null;
   })();
 
+  if (variant === "card") {
+    return (
+      <div className={`relative ${className}`}>
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={busy}
+          className="aspect-video w-full flex flex-col items-center justify-center gap-2 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-700 dark:text-gray-200 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-all disabled:opacity-50"
+        >
+          <GooglePhotosLogo size={22} />
+          <span className="text-xs font-bold">{label}</span>
+        </button>
+        {connectedIdle && (
+          <button
+            type="button"
+            onClick={() => disconnect.mutate()}
+            disabled={disconnect.isPending}
+            title="Disconnect Google Photos"
+            className="absolute top-2 right-2 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all disabled:opacity-50"
+          >
+            <Unlink size={13} />
+          </button>
+        )}
+        {error && (
+          <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className={className}>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={busy}
-        className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
-      >
-        {status.data?.connected ? (
-          <ImageIcon size={16} />
-        ) : (
-          <LinkIcon size={16} />
+      <div className="inline-flex items-stretch gap-1">
+        <button
+          type="button"
+          onClick={handleClick}
+          disabled={busy}
+          className="inline-flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all disabled:opacity-50"
+        >
+          {connected ? <GooglePhotosLogo size={16} /> : <LinkIcon size={16} />}
+          <span className="flex-1 text-left">{label}</span>
+        </button>
+        {connectedIdle && (
+          <button
+            type="button"
+            onClick={() => disconnect.mutate()}
+            disabled={disconnect.isPending}
+            title="Disconnect Google Photos"
+            className="flex items-center px-2 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-400 hover:text-red-500 hover:border-red-400 dark:hover:border-red-500 transition-all disabled:opacity-50"
+          >
+            <Unlink size={14} />
+          </button>
         )}
-        {label}
-      </button>
+      </div>
       {hint && (
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{hint}</p>
       )}
@@ -198,6 +243,18 @@ export default function GooglePhotosPicker({
         <p className="mt-1 text-xs text-red-600 dark:text-red-400">{error}</p>
       )}
     </div>
+  );
+}
+
+function GooglePhotosLogo({ size = 16 }: { size?: number }) {
+  return (
+    <img
+      src="/google-photos-logo.svg"
+      alt="Google Photos"
+      width={size}
+      height={size}
+      style={{ width: size, height: size }}
+    />
   );
 }
 
