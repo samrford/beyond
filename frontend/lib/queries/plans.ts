@@ -51,14 +51,14 @@ export const planKeys = {
 export function usePlans() {
   return useQuery({
     queryKey: planKeys.all,
-    queryFn: () => apiFetch<Plan[]>("/api/plans"),
+    queryFn: () => apiFetch<Plan[]>("/v1/plans"),
   });
 }
 
 export function usePlan(id: string) {
   return useQuery({
     queryKey: planKeys.detail(id),
-    queryFn: () => apiFetch<Plan>(`/api/plans/${id}`),
+    queryFn: () => apiFetch<Plan>(`/v1/plans/${id}`),
     enabled: !!id,
   });
 }
@@ -69,7 +69,7 @@ export function useCreatePlan() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Plan>) =>
-      apiFetch<Plan>("/api/plans", {
+      apiFetch<Plan>("/v1/plans", {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -83,7 +83,7 @@ export function useUpdatePlan(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Plan>) =>
-      apiFetch<Plan>(`/api/plans/${id}`, {
+      apiFetch<Plan>(`/v1/plans/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -98,7 +98,7 @@ export function useDeletePlan() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      apiFetch<void>(`/api/plans/${id}`, { method: "DELETE" }),
+      apiFetch<void>(`/v1/plans/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planKeys.all });
     },
@@ -109,7 +109,7 @@ export function useCreatePlanDay(planId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: { date: string }) =>
-      apiFetch<PlanDay>(`/api/plans/${planId}/days`, {
+      apiFetch<PlanDay>(`/v1/plans/${planId}/days`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -123,7 +123,7 @@ export function useCreatePlanItem(planId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<PlanItem>) =>
-      apiFetch<PlanItem>(`/api/plans/${planId}/items`, {
+      apiFetch<PlanItem>(`/v1/plans/${planId}/items`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -137,7 +137,7 @@ export function useUpdatePlanItem(planId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: PlanItem) =>
-      apiFetch<PlanItem>(`/api/plans/items/${data.id}`, {
+      apiFetch<PlanItem>(`/v1/plans/items/${data.id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -151,7 +151,7 @@ export function useDeletePlanItem(planId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (itemId: string) =>
-      apiFetch<void>(`/api/plans/items/${itemId}`, { method: "DELETE" }),
+      apiFetch<void>(`/v1/plans/items/${itemId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: planKeys.detail(planId) });
     },
@@ -161,7 +161,7 @@ export function useDeletePlanItem(planId: string) {
 export function useConvertPlanToTrip(planId: string) {
   return useMutation({
     mutationFn: () =>
-      apiFetch<{ tripId: string }>(`/api/plans/${planId}/convert`, {
+      apiFetch<{ tripId: string }>(`/v1/plans/${planId}/convert`, {
         method: "POST",
       }),
   });
@@ -171,7 +171,7 @@ export function useImportPlan() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Plan>) =>
-      apiFetch<Plan>("/api/plans/import", {
+      apiFetch<Plan>("/v1/plans/import", {
         method: "POST",
         body: JSON.stringify(data),
       }),

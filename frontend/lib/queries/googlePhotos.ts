@@ -39,14 +39,14 @@ export const googleKeys = {
 export function useGoogleStatus() {
   return useQuery({
     queryKey: googleKeys.status,
-    queryFn: () => apiFetch<GoogleStatus>("/api/integrations/google/status"),
+    queryFn: () => apiFetch<GoogleStatus>("/v1/integrations/google/status"),
   });
 }
 
 export function useGoogleConnect() {
   return useMutation({
     mutationFn: () =>
-      apiFetch<ConnectResponse>("/api/integrations/google/connect", {
+      apiFetch<ConnectResponse>("/v1/integrations/google/connect", {
         method: "POST",
       }),
   });
@@ -56,7 +56,7 @@ export function useGoogleDisconnect() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiFetch<void>("/api/integrations/google", { method: "DELETE" }),
+      apiFetch<void>("/v1/integrations/google", { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: googleKeys.status });
     },
@@ -66,7 +66,7 @@ export function useGoogleDisconnect() {
 export function useCreatePickerSession() {
   return useMutation({
     mutationFn: () =>
-      apiFetch<SessionResponse>("/api/google-photos/sessions", {
+      apiFetch<SessionResponse>("/v1/google-photos/sessions", {
         method: "POST",
       }),
   });
@@ -76,7 +76,7 @@ export function usePickerSessionStatus(sessionId: string | null) {
   return useQuery({
     queryKey: googleKeys.session(sessionId ?? ""),
     queryFn: () =>
-      apiFetch<SessionStatus>(`/api/google-photos/sessions/${sessionId}`),
+      apiFetch<SessionStatus>(`/v1/google-photos/sessions/${sessionId}`),
     enabled: !!sessionId,
     refetchInterval: (q) =>
       q.state.data?.status === "ready" ? false : 2000,
@@ -87,7 +87,7 @@ export function useStartImport() {
   return useMutation({
     mutationFn: (sessionId: string) =>
       apiFetch<{ importJobId: string }>(
-        `/api/google-photos/sessions/${sessionId}/import`,
+        `/v1/google-photos/sessions/${sessionId}/import`,
         { method: "POST" }
       ),
   });
@@ -97,7 +97,7 @@ export function useImportJob(jobId: string | null) {
   return useQuery({
     queryKey: googleKeys.import(jobId ?? ""),
     queryFn: () =>
-      apiFetch<ImportJob>(`/api/google-photos/imports/${jobId}`),
+      apiFetch<ImportJob>(`/v1/google-photos/imports/${jobId}`),
     enabled: !!jobId,
     refetchInterval: (q) => {
       const s = q.state.data?.status;

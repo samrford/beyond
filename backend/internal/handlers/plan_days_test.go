@@ -35,7 +35,7 @@ func TestCreatePlanDay(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), "plan-1", sqlmock.AnyArg(), newDay.Notes).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/days", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/plans/plan-1/days", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreatePlanDay(rr, req)
 
@@ -67,7 +67,7 @@ func TestDeletePlanDay(t *testing.T) {
 		WithArgs("day-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/days/day-1", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/plans/days/day-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlanDay(rr, req)
 
@@ -81,7 +81,7 @@ func TestUpdatePlanDay(t *testing.T) {
 
 	h := NewPlanDaysHandler(db)
 
-	req := reqWithAuth(httptest.NewRequest("PUT", "/api/plans/days/1", nil))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/plans/days/1", nil))
 	rr := httptest.NewRecorder()
 	h.UpdatePlanDay(rr, req)
 
@@ -99,7 +99,7 @@ func TestCreatePlanDay_PlanNotFound(t *testing.T) {
 		WithArgs("plan-1", testUserID).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/days", bytes.NewBuffer([]byte(`{}`))))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/plans/plan-1/days", bytes.NewBuffer([]byte(`{}`))))
 	rr := httptest.NewRecorder()
 	h.CreatePlanDay(rr, req)
 
@@ -115,7 +115,7 @@ func TestDeletePlanDay_NotFound(t *testing.T) {
 
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/days/none", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/plans/days/none", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlanDay(rr, req)
 

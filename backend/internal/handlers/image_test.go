@@ -20,7 +20,7 @@ func TestImageHandler(t *testing.T) {
 		{
 			name:           "Valid image request",
 			method:         "GET",
-			path:           "/api/image/test-id",
+			path:           "/v1/image/test-id",
 			expectedStatus: http.StatusOK,
 			expectedBody:   "Beyond Travel Image: test-id",
 			expectedType:   "image/svg+xml",
@@ -28,20 +28,20 @@ func TestImageHandler(t *testing.T) {
 		{
 			name:           "OPTIONS request (preflight)",
 			method:         "OPTIONS",
-			path:           "/api/image/test-id",
+			path:           "/v1/image/test-id",
 			expectedStatus: http.StatusOK,
 			expectedType:   "",
 		},
 		{
 			name:           "Invalid method",
 			method:         "POST",
-			path:           "/api/image/test-id",
+			path:           "/v1/image/test-id",
 			expectedStatus: http.StatusMethodNotAllowed,
 		},
 		{
 			name:           "Invalid path (too short)",
 			method:         "GET",
-			path:           "/api/im",
+			path:           "/v1/im",
 			expectedStatus: http.StatusBadRequest,
 		},
 		{

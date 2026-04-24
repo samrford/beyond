@@ -332,7 +332,7 @@ export default function PlanDetailPage() {
 
       const createdDays: PlanDay[] = [];
       for (const date of days) {
-        const newDay = await apiFetch<PlanDay>(`/api/plans/${id}/days`, {
+        const newDay = await apiFetch<PlanDay>(`/v1/plans/${id}/days`, {
           method: "POST",
           body: JSON.stringify({ date: date.toISOString() }),
         });

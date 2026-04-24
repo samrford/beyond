@@ -32,7 +32,7 @@ func TestListTrips(t *testing.T) {
 		WithArgs(testUserID).
 		WillReturnRows(rows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips", nil))
 	rr := httptest.NewRecorder()
 	h.ListTrips(rr, req)
 
@@ -78,7 +78,7 @@ func TestGetTrip(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(checkpointRows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetTrip(rr, req)
 
@@ -122,7 +122,7 @@ func TestCreateTrip(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), newTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newTrip.HeaderPhoto, newTrip.Summary, testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreateTrip(rr, req)
 
@@ -159,7 +159,7 @@ func TestUpdateTrip(t *testing.T) {
 		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, "1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("PUT", "/api/trips/1", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/trips/1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdateTrip(rr, req)
 
@@ -187,7 +187,7 @@ func TestDeleteTrip(t *testing.T) {
 		WithArgs("1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/trips/1", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/trips/1", nil))
 	rr := httptest.NewRecorder()
 	h.DeleteTrip(rr, req)
 
@@ -208,7 +208,7 @@ func TestGetTrip_NotFound(t *testing.T) {
 		WithArgs("1", testUserID).
 		WillReturnError(sql.ErrNoRows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetTrip(rr, req)
 
@@ -234,7 +234,7 @@ func TestGetTrip_CheckpointsError(t *testing.T) {
 		WithArgs("1").
 		WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetTrip(rr, req)
 
@@ -247,7 +247,7 @@ func TestCreateTrip_InvalidJSON(t *testing.T) {
 
 	h := NewTripsHandler(db)
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer([]byte(`{invalid`))))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips", bytes.NewBuffer([]byte(`{invalid`))))
 	rr := httptest.NewRecorder()
 	h.CreateTrip(rr, req)
 
@@ -264,7 +264,7 @@ func TestCreateTrip_DBError(t *testing.T) {
 	mock.ExpectExec("INSERT INTO trips").
 		WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips", bytes.NewBuffer([]byte(`{"name":"test"}`))))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips", bytes.NewBuffer([]byte(`{"name":"test"}`))))
 	rr := httptest.NewRecorder()
 	h.CreateTrip(rr, req)
 
@@ -280,7 +280,7 @@ func TestListTrips_DBError(t *testing.T) {
 
 	mock.ExpectQuery("SELECT .* FROM trips").WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/trips", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips", nil))
 	rr := httptest.NewRecorder()
 	h.ListTrips(rr, req)
 

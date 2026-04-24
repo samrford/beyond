@@ -32,7 +32,7 @@ func TestListPlans(t *testing.T) {
 		WithArgs(testUserID).
 		WillReturnRows(rows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans", nil))
 	rr := httptest.NewRecorder()
 	h.ListPlans(rr, req)
 
@@ -78,7 +78,7 @@ func TestGetPlan(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(itemRows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetPlan(rr, req)
 
@@ -117,7 +117,7 @@ func TestCreatePlan(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), newPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newPlan.Summary, newPlan.CoverPhoto, sqlmock.AnyArg(), sqlmock.AnyArg(), testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/plans", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreatePlan(rr, req)
 
@@ -152,7 +152,7 @@ func TestUpdatePlan(t *testing.T) {
 		WithArgs(updatedPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedPlan.Summary, updatedPlan.CoverPhoto, sqlmock.AnyArg(), "1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("PUT", "/api/plans/1", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/plans/1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdatePlan(rr, req)
 
@@ -178,7 +178,7 @@ func TestDeletePlan(t *testing.T) {
 		WithArgs("1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/1", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlan(rr, req)
 
@@ -192,7 +192,7 @@ func TestConvertPlanToTrip(t *testing.T) {
 
 	h := NewPlansHandler(db)
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/1/convert", nil))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/plans/1/convert", nil))
 	rr := httptest.NewRecorder()
 	h.ConvertPlanToTrip(rr, req)
 
@@ -210,7 +210,7 @@ func TestGetPlan_NotFound(t *testing.T) {
 		WithArgs("1", testUserID).
 		WillReturnError(sql.ErrNoRows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetPlan(rr, req)
 
@@ -226,7 +226,7 @@ func TestListPlans_DBError(t *testing.T) {
 
 	mock.ExpectQuery("SELECT .* FROM plans").WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans", nil))
 	rr := httptest.NewRecorder()
 	h.ListPlans(rr, req)
 
@@ -244,7 +244,7 @@ func TestGetPlan_DaysError(t *testing.T) {
 	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at"}).AddRow("1", "P1", now, now, "S1", "C1", now, now))
 	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetPlan(rr, req)
 
@@ -263,7 +263,7 @@ func TestGetPlan_ItemsError(t *testing.T) {
 	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnRows(sqlmock.NewRows([]string{"id", "date", "notes"}))
 	mock.ExpectQuery("SELECT .* FROM plan_items").WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetPlan(rr, req)
 
@@ -289,7 +289,7 @@ func TestGetPlan_UnassignedAndFallback(t *testing.T) {
 
 	mock.ExpectQuery("SELECT .* FROM plan_items").WillReturnRows(itemRows)
 
-	req := reqWithAuth(httptest.NewRequest("GET", "/api/plans/1", nil))
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
 	h.GetPlan(rr, req)
 

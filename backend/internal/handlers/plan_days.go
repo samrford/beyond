@@ -22,7 +22,7 @@ func NewPlanDaysHandler(db *sql.DB) *PlanDaysHandler {
 	}
 }
 
-// CreatePlanDay handles POST /api/plans/:plan_id/days
+// CreatePlanDay handles POST /v1/plans/:plan_id/days
 func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
@@ -63,16 +63,16 @@ func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(d)
 }
 
-// UpdatePlanDay handles PUT /api/plans/days/:id (optional, maybe not needed yet)
+// UpdatePlanDay handles PUT /v1/plans/days/:id (optional, maybe not needed yet)
 func (h *PlanDaysHandler) UpdatePlanDay(w http.ResponseWriter, r *http.Request) {
 	// Not implemented yet
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
-// DeletePlanDay handles DELETE /api/plans/days/:id
+// DeletePlanDay handles DELETE /v1/plans/days/:id
 func (h *PlanDaysHandler) DeletePlanDay(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/plans/days/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/days/")
 
 	// Verify plan day belongs to a plan owned by this user
 	var exists bool
