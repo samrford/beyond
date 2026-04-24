@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -27,7 +29,6 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Limit upload size to 10MB
 	r.ParseMultipartForm(10 << 20)
 
 	file, header, err := r.FormFile("file")
@@ -37,11 +38,25 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Generate unique filename
+	raw, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Failed to read file", http.StatusBadRequest)
+		return
+	}
+
 	ext := filepath.Ext(header.Filename)
 	filename := uuid.New().String() + ext
 
-	url, err := h.storage.UploadFile(r.Context(), filename, file, header.Size, header.Header.Get("Content-Type"))
+	body := raw
+	contentType := header.Header.Get("Content-Type")
+	if compressed, ct, cerr := data.CompressOriginal(raw); cerr == nil {
+		body = compressed
+		contentType = ct
+	} else {
+		log.Printf("Storing original unchanged (compression failed: %v)", cerr)
+	}
+
+	url, err := h.storage.UploadFile(r.Context(), filename, bytes.NewReader(body), int64(len(body)), contentType)
 	if err != nil {
 		log.Printf("Error uploading to storage: %v", err)
 		http.Error(w, "Failed to upload file", http.StatusInternalServerError)

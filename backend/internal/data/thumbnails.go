@@ -71,13 +71,10 @@ func GetOrCreateThumbnail(ctx context.Context, store FileStore, original string,
 		return nil, "", fmt.Errorf("decode: %w", err)
 	}
 
-	// If the image is already smaller than the target box in both dimensions,
-	// there's no point upscaling — return the original bytes under the cache key.
+	// If the image is already smaller than the target box, serve the original
+	// without caching — avoids storing duplicate bytes under the thumbnail key.
 	b := img.Bounds()
 	if b.Dx() <= size && b.Dy() <= size {
-		if _, err := store.UploadFile(ctx, cacheKey, bytes.NewReader(origBytes), int64(len(origBytes)), origCT); err != nil {
-			return nil, "", fmt.Errorf("cache original-sized: %w", err)
-		}
 		return io.NopCloser(bytes.NewReader(origBytes)), origCT, nil
 	}
 
