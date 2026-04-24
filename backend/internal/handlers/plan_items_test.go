@@ -36,7 +36,7 @@ func TestCreatePlanItem(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), "plan-1", sqlmock.AnyArg(), newItem.Name, newItem.Description, newItem.Location, sqlmock.AnyArg(), sqlmock.AnyArg(), newItem.OrderIndex, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/items", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/plans/plan-1/items", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreatePlanItem(rr, req)
 
@@ -75,7 +75,7 @@ func TestUpdatePlanItem(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), updatedItem.Name, updatedItem.Description, updatedItem.Location, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedItem.OrderIndex, sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), "item-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("PUT", "/api/plans/items/item-1", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/plans/items/item-1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdatePlanItem(rr, req)
 
@@ -106,7 +106,7 @@ func TestDeletePlanItem(t *testing.T) {
 		WithArgs("item-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/items/item-1", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/plans/items/item-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlanItem(rr, req)
 
@@ -125,7 +125,7 @@ func TestCreatePlanItem_PlanNotFound(t *testing.T) {
 		WithArgs("plan-1", testUserID).
 		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/plans/plan-1/items", bytes.NewBuffer([]byte(`{}`))))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/plans/plan-1/items", bytes.NewBuffer([]byte(`{}`))))
 	rr := httptest.NewRecorder()
 	h.CreatePlanItem(rr, req)
 
@@ -141,7 +141,7 @@ func TestDeletePlanItem_NotFound(t *testing.T) {
 
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/plans/items/none", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/plans/items/none", nil))
 	rr := httptest.NewRecorder()
 	h.DeletePlanItem(rr, req)
 

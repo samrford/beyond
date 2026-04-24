@@ -24,7 +24,7 @@ func NewCheckpointsHandler(db *sql.DB) *CheckpointsHandler {
 	}
 }
 
-// CreateCheckpoint handles POST /api/trips/:id/checkpoints
+// CreateCheckpoint handles POST /v1/trips/:id/checkpoints
 func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	parts := strings.Split(r.URL.Path, "/")
@@ -64,10 +64,10 @@ func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(c)
 }
 
-// UpdateCheckpoint handles PUT /api/checkpoints/:id
+// UpdateCheckpoint handles PUT /v1/checkpoints/:id
 func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/checkpoints/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/checkpoints/")
 
 	// Verify checkpoint belongs to a trip owned by this user
 	var exists bool
@@ -101,10 +101,10 @@ func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(c)
 }
 
-// DeleteCheckpoint handles DELETE /api/checkpoints/:id
+// DeleteCheckpoint handles DELETE /v1/checkpoints/:id
 func (h *CheckpointsHandler) DeleteCheckpoint(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/checkpoints/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/checkpoints/")
 
 	// Verify checkpoint belongs to a trip owned by this user
 	var exists bool

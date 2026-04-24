@@ -88,8 +88,9 @@ func (s *Storage) UploadFile(ctx context.Context, filename string, reader io.Rea
 		return "", err
 	}
 
-	// Because we are fetching images via the backend, we return our own backend API URL
-	return fmt.Sprintf("/api/image/%s", filename), nil
+	// Store only the bare filename — callers build the image URL (e.g.
+	// /v1/image/{filename}) at read time.
+	return filename, nil
 }
 
 func (s *Storage) GetFile(ctx context.Context, filename string) (io.ReadCloser, string, error) {

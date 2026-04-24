@@ -5,7 +5,7 @@
 import { createClient } from "@/lib/supabase/client";
 
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 /**
  * Get the current Supabase access token, if available.
@@ -96,23 +96,20 @@ export type ThumbnailWidth = 400 | 800 | 1600 | 2400;
 
 /**
  * Centralised image URL resolver.
- * Handles empty paths (placeholder), absolute URLs, and relative paths.
  *
- * Pass `w` to request a server-side thumbnail (aspect preserved, fit within
- * w×w). Originals stay untouched in storage — this only affects delivery.
- * External URLs (blob:, https://) are returned as-is regardless of `w`.
+ * The DB stores bare filenames — we build the `/v1/image/{filename}` URL here.
+ * External URLs (blob:, https://) pass through untouched. Pass `w` to request
+ * a server-side thumbnail (aspect preserved, fit within w×w).
  */
 export function getImageUrl(
   photoPath: string | undefined | null,
   w?: ThumbnailWidth
 ): string {
-  if (!photoPath) return `${API_BASE_URL}/api/image/placeholder`;
+  const query = w ? `?w=${w}` : "";
+  if (!photoPath) return `${API_BASE_URL}/v1/image/placeholder${query}`;
   if (photoPath.startsWith("http") || photoPath.startsWith("blob:"))
     return photoPath;
-  const query = w ? `?w=${w}` : "";
-  if (photoPath.startsWith("/api/image"))
-    return `${API_BASE_URL}${photoPath}${query}`;
-  return `${API_BASE_URL}/api/image/${photoPath}${query}`;
+  return `${API_BASE_URL}/v1/image/${photoPath}${query}`;
 }
 
 /**

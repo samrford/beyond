@@ -68,7 +68,7 @@ func makeImageHandler(store data.FileStore) http.HandlerFunc {
 			return
 		}
 
-		filename := strings.TrimPrefix(r.URL.Path, "/api/image/")
+		filename := strings.TrimPrefix(r.URL.Path, "/v1/image/")
 		if filename == "" {
 			http.Error(w, "No image specified", http.StatusBadRequest)
 			return
@@ -246,7 +246,7 @@ func main() {
 	// Create server
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/api/trips", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/trips", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			tripsHandler.ListTrips(w, r)
 		} else if r.Method == "POST" {
@@ -254,8 +254,8 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/trips/", authed(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+	mux.HandleFunc("/v1/trips/", authed(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 		if strings.HasSuffix(path, "/checkpoints") {
 			if r.Method == "POST" {
 				checkpointsHandler.CreateCheckpoint(w, r)
@@ -272,7 +272,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/checkpoints/", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/checkpoints/", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "PUT" {
 			checkpointsHandler.UpdateCheckpoint(w, r)
 		} else if r.Method == "DELETE" {
@@ -280,7 +280,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/plans", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/plans", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
 			plansHandler.ListPlans(w, r)
 		} else if r.Method == "POST" {
@@ -288,7 +288,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/plans/import", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/plans/import", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			plansHandler.ImportPlan(w, r)
 		} else {
@@ -296,8 +296,8 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/plans/", authed(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/api/plans/")
+	mux.HandleFunc("/v1/plans/", authed(func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
 		if strings.HasPrefix(path, "days/") {
 			if r.Method == "DELETE" {
@@ -339,7 +339,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/api/upload", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/upload", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			uploadHandler.HandleUpload(w, r)
 		} else {
@@ -348,30 +348,30 @@ func main() {
 	}))
 
 	realImageHandler := makeImageHandler(storage)
-	mux.HandleFunc("/api/image/", realImageHandler)
-	mux.HandleFunc("/api/image", realImageHandler)
+	mux.HandleFunc("/v1/image/", realImageHandler)
+	mux.HandleFunc("/v1/image", realImageHandler)
 
 	// Google Photos routes — only mounted if the integration is configured.
 	if handlersPP != nil {
-		mux.HandleFunc("/api/integrations/google/connect", authed(handlersPP.Connect()))
-		mux.HandleFunc("/api/integrations/google/callback", corsMiddleware(handlersPP.Callback()))
-		mux.HandleFunc("/api/integrations/google/status", authed(handlersPP.Status()))
-		mux.HandleFunc("/api/integrations/google", authed(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/v1/integrations/google/connect", authed(handlersPP.Connect()))
+		mux.HandleFunc("/v1/integrations/google/callback", corsMiddleware(handlersPP.Callback()))
+		mux.HandleFunc("/v1/integrations/google/status", authed(handlersPP.Status()))
+		mux.HandleFunc("/v1/integrations/google", authed(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodDelete {
 				handlersPP.Disconnect()(w, r)
 			} else {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))
-		mux.HandleFunc("/api/google-photos/sessions", authed(func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc("/v1/google-photos/sessions", authed(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost {
 				handlersPP.CreateSession()(w, r)
 			} else {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))
-		mux.HandleFunc("/api/google-photos/sessions/", authed(func(w http.ResponseWriter, r *http.Request) {
-			path := strings.TrimPrefix(r.URL.Path, "/api/google-photos/sessions/")
+		mux.HandleFunc("/v1/google-photos/sessions/", authed(func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/v1/google-photos/sessions/")
 			sessionID := strings.TrimSuffix(path, "/import")
 			extract := func(*http.Request) string { return sessionID }
 			switch {
@@ -383,13 +383,13 @@ func main() {
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			}
 		}))
-		mux.HandleFunc("/api/google-photos/imports/", authed(func(w http.ResponseWriter, r *http.Request) {
-			jobID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/google-photos/imports/"), "/")
+		mux.HandleFunc("/v1/google-photos/imports/", authed(func(w http.ResponseWriter, r *http.Request) {
+			jobID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/v1/google-photos/imports/"), "/")
 			handlersPP.GetImport(func(*http.Request) string { return jobID })(w, r)
 		}))
 	}
 
-	mux.HandleFunc("/api/version", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/version", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"version": version})
 	}))

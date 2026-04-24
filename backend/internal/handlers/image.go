@@ -27,13 +27,13 @@ func ImageHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Extract image path from URL
 	path := r.URL.Path
-	if !strings.HasPrefix(path, "/api/image/") {
+	if !strings.HasPrefix(path, "/v1/image/") {
 		http.Error(w, "Invalid image path", http.StatusBadRequest)
 		return
 	}
 
 	// Extract the image identifier from the path
-	imageID := strings.TrimPrefix(path, "/api/image/")
+	imageID := strings.TrimPrefix(path, "/v1/image/")
 
 	// Generate a unique image based on the ID
 	imageData := fmt.Sprintf("Beyond Travel Image: %s", imageID)

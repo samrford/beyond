@@ -24,7 +24,7 @@ func NewTripsHandler(db *sql.DB) *TripsHandler {
 	}
 }
 
-// ListTrips handles GET /api/trips
+// ListTrips handles GET /v1/trips
 func (h *TripsHandler) ListTrips(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	rows, err := h.db.Query("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE user_id = $1 ORDER BY start_date ASC", userID)
@@ -49,10 +49,10 @@ func (h *TripsHandler) ListTrips(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(trips)
 }
 
-// GetTrip handles GET /api/trips/:id
+// GetTrip handles GET /v1/trips/:id
 func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 
 	row := h.db.QueryRow("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE id = $1 AND user_id = $2", id, userID)
 
@@ -98,7 +98,7 @@ func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(t)
 }
 
-// CreateTrip handles POST /api/trips
+// CreateTrip handles POST /v1/trips
 func (h *TripsHandler) CreateTrip(w http.ResponseWriter, r *http.Request) {
 	var t data.Trip
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
@@ -123,10 +123,10 @@ func (h *TripsHandler) CreateTrip(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(t)
 }
 
-// UpdateTrip handles PUT /api/trips/:id
+// UpdateTrip handles PUT /v1/trips/:id
 func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 
 	var t data.Trip
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
@@ -148,10 +148,10 @@ func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(t)
 }
 
-// DeleteTrip handles DELETE /api/trips/:id
+// DeleteTrip handles DELETE /v1/trips/:id
 func (h *TripsHandler) DeleteTrip(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/trips/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 
 	_, err := h.db.Exec("DELETE FROM trips WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {

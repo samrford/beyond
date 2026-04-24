@@ -18,7 +18,7 @@ export const useUpload = () => {
       const formData = new FormData();
       formData.append("file", file);
 
-      const data = await apiUpload<{ url: string }>("/api/upload", formData);
+      const data = await apiUpload<{ url: string }>("/v1/upload", formData);
       return data.url;
     } catch (error) {
       console.error("Upload error:", error);

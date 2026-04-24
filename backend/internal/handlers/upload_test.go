@@ -47,7 +47,7 @@ func TestHandleUpload(t *testing.T) {
 	err = writer.Close()
 	assert.NoError(t, err)
 
-	req := httptest.NewRequest("POST", "/api/upload", body)
+	req := httptest.NewRequest("POST", "/v1/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	// Match arguments exactly or use mock.Anything
@@ -69,7 +69,7 @@ func TestHandleUpload(t *testing.T) {
 
 func TestHandleUpload_NoStorage(t *testing.T) {
 	h := NewUploadHandler(nil)
-	req := httptest.NewRequest("POST", "/api/upload", nil)
+	req := httptest.NewRequest("POST", "/v1/upload", nil)
 	rr := httptest.NewRecorder()
 	h.HandleUpload(rr, req)
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
@@ -78,7 +78,7 @@ func TestHandleUpload_NoStorage(t *testing.T) {
 func TestHandleUpload_InvalidForm(t *testing.T) {
 	mockStorage := new(MockStorage)
 	h := NewUploadHandler(mockStorage)
-	req := httptest.NewRequest("POST", "/api/upload", nil)
+	req := httptest.NewRequest("POST", "/v1/upload", nil)
 	rr := httptest.NewRecorder()
 	h.HandleUpload(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -93,7 +93,7 @@ func TestHandleUpload_UploadError(t *testing.T) {
 	writer.CreateFormFile("file", "test.jpg")
 	writer.Close()
 
-	req := httptest.NewRequest("POST", "/api/upload", body)
+	req := httptest.NewRequest("POST", "/v1/upload", body)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	mockStorage.On("UploadFile", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).

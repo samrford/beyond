@@ -36,14 +36,14 @@ export const tripKeys = {
 export function useTrips() {
   return useQuery({
     queryKey: tripKeys.all,
-    queryFn: () => apiFetch<Trip[]>("/api/trips"),
+    queryFn: () => apiFetch<Trip[]>("/v1/trips"),
   });
 }
 
 export function useTrip(id: string) {
   return useQuery({
     queryKey: tripKeys.detail(id),
-    queryFn: () => apiFetch<Trip>(`/api/trips/${id}`),
+    queryFn: () => apiFetch<Trip>(`/v1/trips/${id}`),
     enabled: !!id,
   });
 }
@@ -54,7 +54,7 @@ export function useCreateTrip() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Trip>) =>
-      apiFetch<Trip>("/api/trips", {
+      apiFetch<Trip>("/v1/trips", {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -68,7 +68,7 @@ export function useUpdateTrip(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Trip>) =>
-      apiFetch<Trip>(`/api/trips/${id}`, {
+      apiFetch<Trip>(`/v1/trips/${id}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -83,7 +83,7 @@ export function useDeleteTrip() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) =>
-      apiFetch<void>(`/api/trips/${id}`, { method: "DELETE" }),
+      apiFetch<void>(`/v1/trips/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: tripKeys.all });
     },
@@ -94,7 +94,7 @@ export function useCreateCheckpoint(tripId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: Partial<Checkpoint>) =>
-      apiFetch<Checkpoint>(`/api/trips/${tripId}/checkpoints`, {
+      apiFetch<Checkpoint>(`/v1/trips/${tripId}/checkpoints`, {
         method: "POST",
         body: JSON.stringify(data),
       }),
@@ -114,7 +114,7 @@ export function useUpdateCheckpoint(tripId: string) {
       checkpointId: string;
       data: Partial<Checkpoint>;
     }) =>
-      apiFetch<Checkpoint>(`/api/checkpoints/${checkpointId}`, {
+      apiFetch<Checkpoint>(`/v1/checkpoints/${checkpointId}`, {
         method: "PUT",
         body: JSON.stringify(data),
       }),
@@ -128,7 +128,7 @@ export function useDeleteCheckpoint(tripId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (checkpointId: string) =>
-      apiFetch<void>(`/api/checkpoints/${checkpointId}`, {
+      apiFetch<void>(`/v1/checkpoints/${checkpointId}`, {
         method: "DELETE",
       }),
     onSuccess: () => {

@@ -42,7 +42,7 @@ func TestCreateCheckpoint(t *testing.T) {
 		WithArgs(sqlmock.AnyArg(), "trip-1", newCheckpoint.Name, newCheckpoint.Location, sqlmock.AnyArg(), newCheckpoint.Description, photosJSON, newCheckpoint.Journal, newCheckpoint.HeroPhoto).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips/trip-1/checkpoints", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips/trip-1/checkpoints", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.CreateCheckpoint(rr, req)
 
@@ -87,7 +87,7 @@ func TestUpdateCheckpoint(t *testing.T) {
 		WithArgs(updatedCp.Name, updatedCp.Location, sqlmock.AnyArg(), updatedCp.Description, photosJSON, updatedCp.Journal, updatedCp.HeroPhoto, "cp-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("PUT", "/api/checkpoints/cp-1", bytes.NewBuffer(body)))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/checkpoints/cp-1", bytes.NewBuffer(body)))
 	rr := httptest.NewRecorder()
 	h.UpdateCheckpoint(rr, req)
 
@@ -121,7 +121,7 @@ func TestDeleteCheckpoint(t *testing.T) {
 		WithArgs("cp-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/checkpoints/cp-1", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/checkpoints/cp-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeleteCheckpoint(rr, req)
 
@@ -140,7 +140,7 @@ func TestCheckpoint_NotFound(t *testing.T) {
 
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/checkpoints/none", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/checkpoints/none", nil))
 	rr := httptest.NewRecorder()
 	h.DeleteCheckpoint(rr, req)
 
@@ -156,7 +156,7 @@ func TestCreateCheckpoint_TripNotFound(t *testing.T) {
 
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(false))
 
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips/none/checkpoints", bytes.NewBuffer([]byte(`{}`))))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips/none/checkpoints", bytes.NewBuffer([]byte(`{}`))))
 	rr := httptest.NewRecorder()
 	h.CreateCheckpoint(rr, req)
 
@@ -173,7 +173,7 @@ func TestCheckpoint_DBError(t *testing.T) {
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
 	mock.ExpectExec("DELETE").WillReturnError(errors.New("db error"))
 
-	req := reqWithAuth(httptest.NewRequest("DELETE", "/api/checkpoints/cp-1", nil))
+	req := reqWithAuth(httptest.NewRequest("DELETE", "/v1/checkpoints/cp-1", nil))
 	rr := httptest.NewRecorder()
 	h.DeleteCheckpoint(rr, req)
 
@@ -185,7 +185,7 @@ func TestCreateCheckpoint_InvalidJSON(t *testing.T) {
 	defer db.Close()
 	h := NewCheckpointsHandler(db)
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	req := reqWithAuth(httptest.NewRequest("POST", "/api/trips/1/checkpoints", bytes.NewBuffer([]byte(`{invalid`))))
+	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips/1/checkpoints", bytes.NewBuffer([]byte(`{invalid`))))
 	rr := httptest.NewRecorder()
 	h.CreateCheckpoint(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)
@@ -196,7 +196,7 @@ func TestUpdateCheckpoint_InvalidJSON(t *testing.T) {
 	defer db.Close()
 	h := NewCheckpointsHandler(db)
 	mock.ExpectQuery("SELECT EXISTS").WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
-	req := reqWithAuth(httptest.NewRequest("PUT", "/api/checkpoints/1", bytes.NewBuffer([]byte(`{invalid`))))
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/checkpoints/1", bytes.NewBuffer([]byte(`{invalid`))))
 	rr := httptest.NewRecorder()
 	h.UpdateCheckpoint(rr, req)
 	assert.Equal(t, http.StatusBadRequest, rr.Code)

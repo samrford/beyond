@@ -22,7 +22,7 @@ func NewPlanItemsHandler(db *sql.DB) *PlanItemsHandler {
 	}
 }
 
-// CreatePlanItem handles POST /api/plans/:plan_id/items
+// CreatePlanItem handles POST /v1/plans/:plan_id/items
 func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
@@ -63,10 +63,10 @@ func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(i)
 }
 
-// UpdatePlanItem handles PUT /api/plans/items/:id
+// UpdatePlanItem handles PUT /v1/plans/items/:id
 func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/plans/items/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/items/")
 
 	// Verify plan item belongs to a plan owned by this user
 	var exists bool
@@ -98,10 +98,10 @@ func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(i)
 }
 
-// DeletePlanItem handles DELETE /api/plans/items/:id
+// DeletePlanItem handles DELETE /v1/plans/items/:id
 func (h *PlanItemsHandler) DeletePlanItem(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/plans/items/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/items/")
 
 	// Verify plan item belongs to a plan owned by this user
 	var exists bool

@@ -23,7 +23,7 @@ func NewPlansHandler(db *sql.DB) *PlansHandler {
 	}
 }
 
-// ListPlans handles GET /api/plans
+// ListPlans handles GET /v1/plans
 func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	rows, err := h.db.Query("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE user_id = $1 ORDER BY start_date ASC", userID)
@@ -54,10 +54,10 @@ func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(plans)
 }
 
-// GetPlan handles GET /api/plans/:id
+// GetPlan handles GET /v1/plans/:id
 func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/plans/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
 	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE id = $1 AND user_id = $2", id, userID)
 
@@ -162,7 +162,7 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
-// CreatePlan handles POST /api/plans
+// CreatePlan handles POST /v1/plans
 func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 	var p data.Plan
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -190,10 +190,10 @@ func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
-// UpdatePlan handles PUT /api/plans/:id
+// UpdatePlan handles PUT /v1/plans/:id
 func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/plans/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
 	var p data.Plan
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -218,10 +218,10 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
-// DeletePlan handles DELETE /api/plans/:id
+// DeletePlan handles DELETE /v1/plans/:id
 func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	id := strings.TrimPrefix(r.URL.Path, "/api/plans/")
+	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
 	_, err := h.db.Exec("DELETE FROM plans WHERE id = $1 AND user_id = $2", id, userID)
 	if err != nil {
@@ -233,7 +233,7 @@ func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// ImportPlan handles POST /api/plans/import
+// ImportPlan handles POST /v1/plans/import
 func (h *PlansHandler) ImportPlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	var p data.Plan
@@ -341,7 +341,7 @@ func sanitizeTime(t *string) *string {
 	return t
 }
 
-// ConvertPlanToTrip handles POST /api/plans/:id/convert
+// ConvertPlanToTrip handles POST /v1/plans/:id/convert
 func (h *PlansHandler) ConvertPlanToTrip(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Convert to Trip is not yet implemented", http.StatusNotImplemented)
 }
