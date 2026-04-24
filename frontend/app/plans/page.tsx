@@ -8,8 +8,8 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { usePlans, useDeletePlan, useImportPlan } from "@/lib/queries/plans";
 import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
-import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
+import QueryBoundary from "@/components/QueryBoundary";
 
 const IMPORT_TEMPLATE = {
   name: "My Trip to Japan",
@@ -56,7 +56,7 @@ const IMPORT_TEMPLATE = {
 };
 
 export default function PlansPage() {
-  const { data: plans = [], isLoading } = usePlans();
+  const { data: plans, isLoading, isError, error, refetch } = usePlans();
   const deletePlan = useDeletePlan();
   const importPlan = useImportPlan();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -114,6 +114,18 @@ export default function PlansPage() {
     reader.readAsText(file);
   };
 
+  if (isLoading || isError) {
+    return (
+      <QueryBoundary
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Preparing your adventures..."
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen bg-transparent p-8">
       <PageTransition>
@@ -160,11 +172,7 @@ export default function PlansPage() {
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="flex justify-center py-20">
-              <LoadingGlobe message="Preparing your adventures..." />
-            </div>
-          ) : (plans && plans.length > 0) ? (
+          {(plans && plans.length > 0) ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {plans.map((plan) => (
                 <div key={plan.id} className="relative group">

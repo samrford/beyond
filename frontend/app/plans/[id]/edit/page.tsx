@@ -4,15 +4,15 @@ import { useRouter, useParams } from "next/navigation";
 import PlanForm from "@/components/PlanForm";
 import { usePlan, useUpdatePlan, Plan } from "@/lib/queries/plans";
 import toast from "react-hot-toast";
-import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
+import QueryBoundary from "@/components/QueryBoundary";
 
 export default function EditPlanPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
 
-  const { data: plan, isLoading } = usePlan(id);
+  const { data: plan, isLoading, isError, error, refetch } = usePlan(id);
   const updatePlan = useUpdatePlan(id);
 
   const handleSubmit = async (data: Partial<Plan>) => {
@@ -27,11 +27,19 @@ export default function EditPlanPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isError || !plan) {
     return (
-      <main className="min-h-screen bg-transparent flex items-center justify-center">
-        <LoadingGlobe message="Preparing plan details..." />
-      </main>
+      <QueryBoundary
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Preparing plan details..."
+        notFound={!isLoading && !isError && !plan}
+        notFoundMessage="We couldn't find that plan."
+        backHref="/plans"
+        backLabel="Back to plans"
+      />
     );
   }
 

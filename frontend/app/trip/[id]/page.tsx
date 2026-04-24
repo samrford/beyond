@@ -7,9 +7,9 @@ import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import CheckpointCard from "@/components/CheckpointCard";
 import ConfirmModal from "@/components/ConfirmModal";
-import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
 import CheckpointModal from "@/components/CheckpointModal";
+import QueryBoundary from "@/components/QueryBoundary";
 import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint, Checkpoint } from "@/lib/queries/trips";
 import { CheckpointData } from "@/components/CheckpointForm";
 import { getImageUrl } from "@/lib/api";
@@ -17,7 +17,7 @@ import toast from "react-hot-toast";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { data: trip, isLoading } = useTrip(params.id);
+  const { data: trip, isLoading, isError, error, refetch } = useTrip(params.id);
   const deleteTripMutation = useDeleteTrip();
   const deleteCheckpointMutation = useDeleteCheckpoint(params.id);
   const updateCheckpointMutation = useUpdateCheckpoint(params.id);
@@ -88,24 +88,19 @@ export default function TripPage({ params }: { params: { id: string } }) {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isError || !trip) {
     return (
-      <main className="min-h-screen p-8 bg-transparent flex items-center justify-center">
-        <LoadingGlobe message="Loading your adventure..." />
-      </main>
-    );
-  }
-
-  if (!trip) {
-    return (
-      <main className="min-h-screen p-8 bg-transparent">
-        <div className="text-center">
-          <p className="text-gray-600 dark:text-gray-400">Trip not found.</p>
-          <Link href="/trips" className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300">
-            Back to trips
-          </Link>
-        </div>
-      </main>
+      <QueryBoundary
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Loading your adventure..."
+        notFound={!isLoading && !isError && !trip}
+        notFoundMessage="We couldn't find that trip."
+        backHref="/trips"
+        backLabel="Back to trips"
+      />
     );
   }
 

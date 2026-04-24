@@ -8,11 +8,11 @@ import ConfirmModal from "@/components/ConfirmModal";
 import { useTrips, useDeleteTrip } from "@/lib/queries/trips";
 import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
-import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
+import QueryBoundary from "@/components/QueryBoundary";
 
 export default function TripsPage() {
-  const { data: trips = [], isLoading } = useTrips();
+  const { data: trips, isLoading, isError, error, refetch } = useTrips();
   const deleteTrip = useDeleteTrip();
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, tripId: "" });
 
@@ -35,11 +35,15 @@ export default function TripsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isError) {
     return (
-      <main className="min-h-screen p-8 bg-transparent flex items-center justify-center">
-        <LoadingGlobe message="Finding your trips..." />
-      </main>
+      <QueryBoundary
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Finding your trips..."
+      />
     );
   }
 

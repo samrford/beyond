@@ -5,11 +5,11 @@ import CheckpointForm from "@/components/CheckpointForm";
 import { useTrip, useUpdateCheckpoint } from "@/lib/queries/trips";
 import { CheckpointData } from "@/components/CheckpointForm";
 import toast from "react-hot-toast";
-import LoadingGlobe from "@/components/LoadingGlobe";
+import QueryBoundary from "@/components/QueryBoundary";
 
 export default function EditCheckpointPage({ params }: { params: { id: string, checkpointId: string } }) {
   const router = useRouter();
-  const { data: trip, isLoading } = useTrip(params.id);
+  const { data: trip, isLoading, isError, error, refetch } = useTrip(params.id);
   const updateCheckpoint = useUpdateCheckpoint(params.id);
 
   const checkpoint = trip?.checkpoints?.find((c) => c.id === params.checkpointId);
@@ -41,19 +41,19 @@ export default function EditCheckpointPage({ params }: { params: { id: string, c
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isError || !trip || !initialData) {
     return (
-      <main className="min-h-screen bg-transparent flex items-center justify-center">
-        <LoadingGlobe message="Loading checkpoint details..." />
-      </main>
-    );
-  }
-
-  if (!initialData) {
-    return (
-      <main className="min-h-screen p-8 bg-transparent border-none">
-        <div className="text-center">Checkpoint not found.</div>
-      </main>
+      <QueryBoundary
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Loading checkpoint details..."
+        notFound={!isLoading && !isError && (!trip || !initialData)}
+        notFoundMessage="We couldn't find that checkpoint."
+        backHref={`/trip/${params.id}`}
+        backLabel="Back to trip"
+      />
     );
   }
 

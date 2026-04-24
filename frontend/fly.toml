@@ -10,6 +10,7 @@ primary_region = 'lhr'
   dockerfile = 'Dockerfile'
 
 [build.args]
+  NEXT_PUBLIC_API_BASE_URL="https://api.beyond-travel.net"
   NEXT_PUBLIC_SUPABASE_URL="https://zzoxjjkljxbaycmubwog.supabase.co"
 
 [env]

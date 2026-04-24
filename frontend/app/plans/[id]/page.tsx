@@ -23,8 +23,8 @@ import {
 } from "@/lib/queries/plans";
 import { apiFetch, ApiError } from "@/lib/api";
 import toast from "react-hot-toast";
-import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
+import QueryBoundary from "@/components/QueryBoundary";
 
 export default function PlanDetailPage() {
   const params = useParams();
@@ -33,7 +33,7 @@ export default function PlanDetailPage() {
   const id = params.id as string;
 
   // Queries & mutations
-  const { data: fetchedPlan, isLoading } = usePlan(id);
+  const { data: fetchedPlan, isLoading, isError, error, refetch } = usePlan(id);
   const deletePlanMutation = useDeletePlan();
   const updateItemMutation = useUpdatePlanItem(id);
   const createItemMutation = useCreatePlanItem(id);
@@ -367,15 +367,21 @@ export default function PlanDetailPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isError || !fetchedPlan || !plan) {
     return (
-      <main className="min-h-screen p-8 bg-transparent flex items-center justify-center">
-        <LoadingGlobe message="Building your itinerary..." />
-      </main>
+      <QueryBoundary
+        isLoading={isLoading || (!!fetchedPlan && !plan)}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Building your itinerary..."
+        notFound={!isLoading && !isError && !fetchedPlan}
+        notFoundMessage="We couldn't find that plan."
+        backHref="/plans"
+        backLabel="Back to plans"
+      />
     );
   }
-
-  if (!plan) return null;
 
   return (
     <main className="h-screen flex flex-col bg-transparent overflow-hidden">

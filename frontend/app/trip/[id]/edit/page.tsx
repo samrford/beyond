@@ -5,12 +5,12 @@ import TripForm from "@/components/TripForm";
 import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
 import { TripData } from "@/components/TripForm";
 import toast from "react-hot-toast";
-import LoadingGlobe from "@/components/LoadingGlobe";
 import PageTransition from "@/components/PageTransition";
+import QueryBoundary from "@/components/QueryBoundary";
 
 export default function EditTripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { data: trip, isLoading } = useTrip(params.id);
+  const { data: trip, isLoading, isError, error, refetch } = useTrip(params.id);
   const updateTrip = useUpdateTrip(params.id);
 
   const initialData = trip
@@ -35,11 +35,19 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isError || !trip) {
     return (
-      <main className="min-h-screen bg-transparent flex items-center justify-center">
-        <LoadingGlobe message="Preparing trip details..." />
-      </main>
+      <QueryBoundary
+        isLoading={isLoading}
+        isError={isError}
+        error={error}
+        onRetry={() => refetch()}
+        loadingMessage="Preparing trip details..."
+        notFound={!isLoading && !isError && !trip}
+        notFoundMessage="We couldn't find that trip."
+        backHref="/trips"
+        backLabel="Back to trips"
+      />
     );
   }
 
