@@ -3,11 +3,17 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+
+	photopicker "github.com/samrford/google-photos-picker"
+	ppg "github.com/samrford/google-photos-picker/postgres"
 
 	"beyond/backend/internal/data"
 	"beyond/backend/internal/handlers"
@@ -35,7 +41,10 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-// makeImageHandler handles image requests by fetching them from storage
+// makeImageHandler handles image requests by fetching them from storage.
+// Supports ?w=<size> to return a thumbnail fitting within size×size (aspect
+// preserved). Allowed sizes: see data.AllowedThumbnailSizes. Without ?w=,
+// returns the original bytes as stored.
 func makeImageHandler(store data.FileStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers FIRST, before any headers are written
@@ -65,9 +74,24 @@ func makeImageHandler(store data.FileStore) http.HandlerFunc {
 			return
 		}
 
-		body, contentType, err := store.GetFile(r.Context(), filename)
+		var (
+			body        io.ReadCloser
+			contentType string
+			err         error
+		)
+
+		if widthStr := r.URL.Query().Get("w"); widthStr != "" {
+			width, perr := strconv.Atoi(widthStr)
+			if perr != nil || !data.IsAllowedSize(width) {
+				http.Error(w, fmt.Sprintf("Invalid ?w= — allowed sizes: %v", data.AllowedThumbnailSizes), http.StatusBadRequest)
+				return
+			}
+			body, contentType, err = data.GetOrCreateThumbnail(r.Context(), store, filename, width)
+		} else {
+			body, contentType, err = store.GetFile(r.Context(), filename)
+		}
+
 		if err != nil {
-			// Instead of a 404 string, we could log and return 404
 			log.Printf("Failed to get image %s: %v", filename, err)
 			http.Error(w, "Image not found", http.StatusNotFound)
 			return
@@ -77,7 +101,6 @@ func makeImageHandler(store data.FileStore) http.HandlerFunc {
 		if contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		} else {
-			// Fallback based on extension or stream
 			w.Header().Set("Content-Type", "image/jpeg")
 		}
 
@@ -166,6 +189,59 @@ func main() {
 		uploader = storage
 	}
 	uploadHandler := handlers.NewUploadHandler(uploader)
+
+	// Google Photos integration (optional — only enabled if env vars present)
+	var handlersPP *photopicker.Handlers
+	googleClientID := os.Getenv("GOOGLE_CLIENT_ID")
+	googleClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
+	googleEncKey := os.Getenv("GOOGLE_TOKEN_ENCRYPTION_KEY")
+	if googleClientID != "" && googleClientSecret != "" && googleRedirectURL != "" && googleEncKey != "" && uploader != nil {
+		if err := ppg.Migrate(db); err != nil {
+			log.Fatalf("photopicker migrate: %v", err)
+		}
+		tokenStore, err := ppg.NewTokenStore(db, googleEncKey)
+		if err != nil {
+			log.Fatalf("photopicker token store: %v", err)
+		}
+		importStore := ppg.NewImportStore(db)
+		client, err := photopicker.New(photopicker.Config{
+			OAuth:       photopicker.NewOAuthConfig(googleClientID, googleClientSecret, googleRedirectURL),
+			TokenStore:  tokenStore,
+			ImportStore: importStore,
+			Sink:        handlers.NewBeyondSink(uploader),
+		})
+		if err != nil {
+			log.Fatalf("photopicker: %v", err)
+		}
+		handlersPP, err = photopicker.NewHandlers(photopicker.HandlersConfig{
+			Client: client,
+			ResolveUserID: func(r *http.Request) (string, error) {
+				uid := handlers.GetUserID(r.Context())
+				if uid == "" {
+					return "", errors.New("unauthenticated")
+				}
+				return uid, nil
+			},
+			Callback: photopicker.CallbackPage{
+				PostMessageType: "beyond:google-oauth",
+				TargetOrigin:    os.Getenv("FRONTEND_ORIGIN"),
+			},
+		})
+		if err != nil {
+			log.Fatalf("photopicker handlers: %v", err)
+		}
+		worker, err := photopicker.NewWorker(photopicker.WorkerConfig{Client: client})
+		if err != nil {
+			log.Fatalf("photopicker worker: %v", err)
+		}
+		workerCtx, cancelWorker := context.WithCancel(context.Background())
+		defer cancelWorker()
+		go worker.Run(workerCtx)
+		log.Println("Google Photos integration enabled")
+	} else {
+		log.Println("Google Photos integration disabled (missing env vars)")
+	}
 
 	// Create server
 	mux := http.NewServeMux()
@@ -274,6 +350,44 @@ func main() {
 	realImageHandler := makeImageHandler(storage)
 	mux.HandleFunc("/api/image/", realImageHandler)
 	mux.HandleFunc("/api/image", realImageHandler)
+
+	// Google Photos routes — only mounted if the integration is configured.
+	if handlersPP != nil {
+		mux.HandleFunc("/api/integrations/google/connect", authed(handlersPP.Connect()))
+		mux.HandleFunc("/api/integrations/google/callback", corsMiddleware(handlersPP.Callback()))
+		mux.HandleFunc("/api/integrations/google/status", authed(handlersPP.Status()))
+		mux.HandleFunc("/api/integrations/google", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodDelete {
+				handlersPP.Disconnect()(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+		mux.HandleFunc("/api/google-photos/sessions", authed(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == http.MethodPost {
+				handlersPP.CreateSession()(w, r)
+			} else {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+		mux.HandleFunc("/api/google-photos/sessions/", authed(func(w http.ResponseWriter, r *http.Request) {
+			path := strings.TrimPrefix(r.URL.Path, "/api/google-photos/sessions/")
+			sessionID := strings.TrimSuffix(path, "/import")
+			extract := func(*http.Request) string { return sessionID }
+			switch {
+			case strings.HasSuffix(path, "/import") && r.Method == http.MethodPost:
+				handlersPP.StartImport(extract)(w, r)
+			case r.Method == http.MethodGet:
+				handlersPP.PollSession(extract)(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}))
+		mux.HandleFunc("/api/google-photos/imports/", authed(func(w http.ResponseWriter, r *http.Request) {
+			jobID := strings.TrimSuffix(strings.TrimPrefix(r.URL.Path, "/api/google-photos/imports/"), "/")
+			handlersPP.GetImport(func(*http.Request) string { return jobID })(w, r)
+		}))
+	}
 
 	mux.HandleFunc("/api/version", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

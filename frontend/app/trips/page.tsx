@@ -109,7 +109,7 @@ export default function TripsPage() {
               >
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
                   <Image
-                    src={getImageUrl(trip.headerPhoto)}
+                    src={getImageUrl(trip.headerPhoto, 800)}
                     alt={trip.name}
                     fill
                     className="object-cover"

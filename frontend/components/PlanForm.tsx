@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { getImageUrl } from "@/lib/api";
 import DatePicker from "./DatePicker";
+import GooglePhotosPicker from "./GooglePhotosPicker";
 import { Plan } from "@/lib/queries/plans";
 
 interface PlanFormProps {
@@ -121,7 +122,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
            {(previewUrl || formData.coverPhoto) ? (
              <>
                <Image 
-                 src={previewUrl || getImageUrl(formData.coverPhoto)} 
+                 src={previewUrl || getImageUrl(formData.coverPhoto, 1600)}
                  alt="Preview" 
                  fill
                  unoptimized
@@ -143,13 +144,23 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
                </p>
              </>
            )}
-           <input 
-             type="file" 
+           <input
+             type="file"
              accept="image/*"
              onChange={handleFileChange}
              disabled={uploading}
              className="absolute inset-0 opacity-0 cursor-pointer"
            />
+        </div>
+        <div className="mt-2 flex justify-end">
+          <GooglePhotosPicker
+            maxItems={1}
+            onSelect={(urls) => {
+              if (urls[0]) {
+                setFormData((prev) => ({ ...prev, coverPhoto: urls[0] }));
+              }
+            }}
+          />
         </div>
       </div>
 

@@ -174,7 +174,7 @@ export default function PlansPage() {
                   >
                     <div className="relative h-48 overflow-hidden bg-gray-100 dark:bg-gray-700">
                       <Image
-                        src={getImageUrl(plan.coverPhoto)}
+                        src={getImageUrl(plan.coverPhoto, 800)}
                         alt={plan.name}
                         fill
                         unoptimized
