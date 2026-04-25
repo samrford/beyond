@@ -149,7 +149,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
           <input
             type="file"
             onChange={handleFileChange}
-            accept="image/*"
+            accept="image/jpeg,image/png"
             disabled={isUploading}
             className="absolute inset-0 opacity-0 cursor-pointer"
           />

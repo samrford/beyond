@@ -1,9 +1,12 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
-	"path/filepath"
-	"strings"
+	"fmt"
+	"io"
+	"log"
+	"net/http"
 
 	"github.com/google/uuid"
 	photopicker "github.com/samrford/google-photos-picker"
@@ -19,30 +22,29 @@ func NewBeyondSink(fs data.FileStore) photopicker.PhotoSink {
 }
 
 func (s *beyondSink) SavePhoto(ctx context.Context, _, _ string, p photopicker.DownloadedPhoto) (string, error) {
-	ext := filepath.Ext(p.Filename)
-	if ext == "" {
-		ext = extFromMime(p.MimeType)
+	raw, err := io.ReadAll(p.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("read photo: %w", err)
 	}
-	ct := p.MimeType
-	if ct == "" {
-		ct = "image/jpeg"
-	}
-	return s.fs.UploadFile(ctx, uuid.New().String()+ext, p.Bytes, p.Size, ct)
-}
 
-func extFromMime(mime string) string {
-	switch {
-	case strings.Contains(mime, "jpeg"), strings.Contains(mime, "jpg"):
-		return ".jpg"
-	case strings.Contains(mime, "png"):
-		return ".png"
-	case strings.Contains(mime, "gif"):
-		return ".gif"
-	case strings.Contains(mime, "webp"):
-		return ".webp"
-	case strings.Contains(mime, "heic"):
-		return ".heic"
-	default:
-		return ".jpg"
+	sniffed := http.DetectContentType(raw)
+	if sniffed != "image/jpeg" && sniffed != "image/png" {
+		return "", fmt.Errorf("unsupported format %q (only JPEG and PNG accepted)", sniffed)
 	}
+
+	body := raw
+	ct := sniffed
+	if compressed, c, cerr := data.CompressOriginal(raw); cerr == nil {
+		body = compressed
+		ct = c
+	} else {
+		log.Printf("Storing Google Photos original unchanged (compression failed: %v)", cerr)
+	}
+
+	ext := ".jpg"
+	if sniffed == "image/png" {
+		ext = ".png"
+	}
+
+	return s.fs.UploadFile(ctx, uuid.New().String()+ext, bytes.NewReader(body), int64(len(body)), ct)
 }

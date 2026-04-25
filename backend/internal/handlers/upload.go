@@ -44,11 +44,17 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sniffed := http.DetectContentType(raw)
+	if sniffed != "image/jpeg" && sniffed != "image/png" {
+		http.Error(w, "Only JPEG and PNG images are supported", http.StatusUnsupportedMediaType)
+		return
+	}
+
 	ext := filepath.Ext(header.Filename)
 	filename := uuid.New().String() + ext
 
 	body := raw
-	contentType := header.Header.Get("Content-Type")
+	contentType := sniffed
 	if compressed, ct, cerr := data.CompressOriginal(raw); cerr == nil {
 		body = compressed
 		contentType = ct

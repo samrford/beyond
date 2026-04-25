@@ -34,6 +34,11 @@ func (m *MockStorage) GetFile(ctx context.Context, filename string) (io.ReadClos
 	return rc, args.String(1), args.Error(2)
 }
 
+// jpegPrefix is enough bytes to make http.DetectContentType identify the
+// payload as image/jpeg. Decode will still fail (the content is junk after
+// the magic bytes), exercising the upload handler's compression-fallback path.
+var jpegPrefix = []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46}
+
 func TestHandleUpload(t *testing.T) {
 	mockStorage := new(MockStorage)
 	h := NewUploadHandler(mockStorage)
@@ -42,7 +47,7 @@ func TestHandleUpload(t *testing.T) {
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", "test.jpg")
 	assert.NoError(t, err)
-	_, err = part.Write([]byte("dummy data"))
+	_, err = part.Write(append(jpegPrefix, []byte("dummy data")...))
 	assert.NoError(t, err)
 	err = writer.Close()
 	assert.NoError(t, err)
@@ -90,7 +95,8 @@ func TestHandleUpload_UploadError(t *testing.T) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.CreateFormFile("file", "test.jpg")
+	part, _ := writer.CreateFormFile("file", "test.jpg")
+	part.Write(jpegPrefix)
 	writer.Close()
 
 	req := httptest.NewRequest("POST", "/v1/upload", body)
@@ -103,4 +109,44 @@ func TestHandleUpload_UploadError(t *testing.T) {
 	h.HandleUpload(rr, req)
 
 	assert.Equal(t, http.StatusInternalServerError, rr.Code)
+}
+
+func TestHandleUpload_RejectsNonImage(t *testing.T) {
+	mockStorage := new(MockStorage)
+	h := NewUploadHandler(mockStorage)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "notes.txt")
+	part.Write([]byte("this is just plain text, not an image"))
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/v1/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	rr := httptest.NewRecorder()
+	h.HandleUpload(rr, req)
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, rr.Code)
+	mockStorage.AssertNotCalled(t, "UploadFile")
+}
+
+func TestHandleUpload_RejectsGIF(t *testing.T) {
+	mockStorage := new(MockStorage)
+	h := NewUploadHandler(mockStorage)
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, _ := writer.CreateFormFile("file", "anim.gif")
+	part.Write([]byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61})
+	writer.Close()
+
+	req := httptest.NewRequest("POST", "/v1/upload", body)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	rr := httptest.NewRecorder()
+	h.HandleUpload(rr, req)
+
+	assert.Equal(t, http.StatusUnsupportedMediaType, rr.Code)
+	mockStorage.AssertNotCalled(t, "UploadFile")
 }

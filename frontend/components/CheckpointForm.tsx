@@ -300,7 +300,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
           type="file"
           ref={fileInputRef}
           onChange={handleFileChange}
-          accept="image/*"
+          accept="image/jpeg,image/png"
           multiple
           className="hidden"
         />

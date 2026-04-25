@@ -146,7 +146,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
            )}
            <input
              type="file"
-             accept="image/*"
+             accept="image/jpeg,image/png"
              onChange={handleFileChange}
              disabled={uploading}
              className="absolute inset-0 opacity-0 cursor-pointer"
