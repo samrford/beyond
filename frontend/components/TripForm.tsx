@@ -42,7 +42,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     headerPhoto: initialData?.headerPhoto || "",
     summary: initialData?.summary || "",
   });
-  
+
   const pendingUploads = useRef<Set<string>>(new Set());
 
   const { upload, uploading: isUploading } = useUpload((filename) => {
@@ -222,7 +222,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
           disabled={isLoading || isUploading}
           className="flex-[2] py-3 px-6 bg-primary-600 text-white rounded-lg font-bold shadow-lg shadow-primary-500/30 hover:bg-primary-700 transition-all active:scale-[0.98] disabled:opacity-50"
         >
-          {isLoading ? "Saving..." : "Add Trip"}
+          {isLoading ? "Saving..." : initialData ? "Save Changes" : "Add Trip"}
         </button>
       </div>
     </form>
