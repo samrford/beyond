@@ -34,6 +34,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
 
   const openPhoto = (photo: string) => { setSelectedPhoto(photo); setFitToScreen(true); };
   const closePhoto = () => { setSelectedPhoto(null); setFitToScreen(true); };
+  const openPhotoInModal = (photo: string) => { setPhotoModalOpen(true); openPhoto(photo); };
   // photo path -> aspect ratio (w/h), populated by preloading when modal opens
   const [aspectRatios, setAspectRatios] = useState<Map<string, number>>(new Map());
 
@@ -143,8 +144,10 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
         {totalPhotos > 0 && (
           <div className="flex gap-1.5 rounded-xl overflow-hidden mb-3">
             {/* Hero — aspect ratio driven by natural image dimensions, no cropping */}
-            <div
-              className="relative overflow-hidden"
+            <button
+              type="button"
+              onClick={() => openPhotoInModal(heroPhoto)}
+              className="relative overflow-hidden hover:opacity-90 transition-opacity"
               style={{
                 flex: "3",
                 aspectRatio: String(aspectRatios.get(heroPhoto) ?? 4 / 3),
@@ -163,21 +166,26 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                     );
                 }}
               />
-            </div>
+            </button>
 
             {/* Sidebar — three stacked thumbnails */}
             {totalPhotos > 1 && (
               <div className="flex flex-col flex-[2] gap-1.5">
                 {[1, 2].map((i) =>
                   photos[i] ? (
-                    <div key={i} className="relative flex-1 overflow-hidden">
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => openPhotoInModal(photos[i])}
+                      className="relative flex-1 overflow-hidden hover:opacity-90 transition-opacity"
+                    >
                       <AuthImage
                         src={getImageUrl(photos[i], 400)}
                         alt={`${checkpoint.name} ${i + 1}`}
                         fill
                         className="object-cover"
                       />
-                    </div>
+                    </button>
                   ) : (
                     <div key={i} className="flex-1" />
                   )

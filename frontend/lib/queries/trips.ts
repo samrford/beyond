@@ -3,6 +3,15 @@ import { apiFetch } from "../api";
 
 // ─── Types ───────────────────────────────────────────────
 
+export type TripBgMode =
+  | "default"
+  | "ambient"
+  | "topo"
+  | "dots"
+  | "diagonal"
+  | "grid"
+  | "waves";
+
 export interface Trip {
   id: string;
   name: string;
@@ -10,6 +19,10 @@ export interface Trip {
   endDate: string;
   headerPhoto: string;
   summary: string;
+  bgMode: TripBgMode;
+  bgBlur: number;
+  bgOpacity: number;
+  bgDarkness: number;
   checkpoints: Checkpoint[] | null;
 }
 

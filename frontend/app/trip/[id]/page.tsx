@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
@@ -9,11 +9,12 @@ import ConfirmModal from "@/components/ConfirmModal";
 import PageTransition from "@/components/PageTransition";
 import CheckpointModal from "@/components/CheckpointModal";
 import QueryBoundary from "@/components/QueryBoundary";
-import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint, Checkpoint } from "@/lib/queries/trips";
+import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint, useUpdateTrip, Checkpoint } from "@/lib/queries/trips";
 import { CheckpointData } from "@/components/CheckpointForm";
 import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import AuthImage from "@/components/AuthImage";
+import TripBackground, { tripBackgroundIsDirty, TripBackgroundValue } from "@/components/TripBackground";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -22,6 +23,40 @@ export default function TripPage({ params }: { params: { id: string } }) {
   const deleteCheckpointMutation = useDeleteCheckpoint(params.id);
   const updateCheckpointMutation = useUpdateCheckpoint(params.id);
   const createCheckpointMutation = useCreateCheckpoint(params.id);
+  const updateTripMutation = useUpdateTrip(params.id);
+
+  const savedBg: TripBackgroundValue = useMemo(
+    () => ({
+      mode: trip?.bgMode ?? "default",
+      blur: trip?.bgBlur ?? 20,
+      opacity: trip?.bgOpacity ?? 100,
+      darkness: trip?.bgDarkness ?? 10,
+    }),
+    [trip?.bgMode, trip?.bgBlur, trip?.bgOpacity, trip?.bgDarkness],
+  );
+  const [bg, setBg] = useState<TripBackgroundValue>(savedBg);
+  const savedKey = `${savedBg.mode}|${savedBg.blur}|${savedBg.opacity}|${savedBg.darkness}`;
+  useEffect(() => {
+    setBg(savedBg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedKey]);
+
+  const isDirty = tripBackgroundIsDirty(bg, savedBg);
+
+  const handleSaveBg = () => {
+    if (!trip) return;
+    updateTripMutation.mutate({
+      name: trip.name,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      headerPhoto: trip.headerPhoto,
+      summary: trip.summary,
+      bgMode: bg.mode,
+      bgBlur: bg.blur,
+      bgOpacity: bg.opacity,
+      bgDarkness: bg.darkness,
+    });
+  };
   
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, type: "", id: "" });
   const [editModal, setEditModal] = useState<{ isOpen: boolean; checkpoint: Checkpoint | null }>({
@@ -104,18 +139,35 @@ export default function TripPage({ params }: { params: { id: string } }) {
     );
   }
 
+  const heroSrc = getImageUrl(trip.headerPhoto, 2400);
+
   return (
     <main className="min-h-screen bg-transparent">
+      <TripBackground
+        imageUrl={heroSrc}
+        value={bg}
+        onChange={setBg}
+        isDirty={isDirty}
+        isSaving={updateTripMutation.isPending}
+        onSave={handleSaveBg}
+      />
       <PageTransition>
         {/* Header Section */}
-      <div className="relative h-64 bg-gray-300 dark:bg-gray-800">
+      <div
+        className="relative h-72"
+        style={{
+          maskImage:
+            "linear-gradient(to bottom, black 0%, black 65%, transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, black 0%, black 65%, transparent 100%)",
+        }}
+      >
         <AuthImage
-          src={getImageUrl(trip.headerPhoto, 2400)}
+          src={heroSrc}
           alt={trip.name}
           fill
           className="object-cover"
         />
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 to-transparent h-16" />
       </div>
 
       <div className="max-w-4xl mx-auto -mt-6 mb-4 relative px-4 flex items-center z-10">
