@@ -10,6 +10,7 @@ import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import PageTransition from "@/components/PageTransition";
 import QueryBoundary from "@/components/QueryBoundary";
+import AuthImage from "@/components/AuthImage";
 
 export default function TripsPage() {
   const { data: trips, isLoading, isError, error, refetch } = useTrips();
@@ -112,12 +113,11 @@ export default function TripsPage() {
                 className="block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-transparent dark:border-gray-700"
               >
                 <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                  <Image
+                  <AuthImage
                     src={getImageUrl(trip.headerPhoto, 800)}
                     alt={trip.name}
                     fill
                     className="object-cover"
-                    unoptimized
                   />
                 </div>
 

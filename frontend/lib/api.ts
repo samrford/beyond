@@ -88,6 +88,23 @@ export async function apiUpload<T>(
 }
 
 /**
+ * Fire-and-forget DELETE helper. Resolves when the request completes
+ * (any status). Does not throw — intended for best-effort cleanup calls
+ * (e.g. deleting orphaned uploads on modal cancel).
+ */
+export async function apiDelete(path: string): Promise<void> {
+  try {
+    const auth = await authHeaders();
+    await fetch(`${API_BASE_URL}${path}`, {
+      method: "DELETE",
+      headers: { ...auth },
+    });
+  } catch {
+    // Intentionally swallow — the cron sweep is the safety net.
+  }
+}
+
+/**
  * Allowed thumbnail sizes (must match backend data.AllowedThumbnailSizes).
  * Requesting a size outside this list will 400.
  */

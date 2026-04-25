@@ -10,6 +10,7 @@ import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
 import PageTransition from "@/components/PageTransition";
 import QueryBoundary from "@/components/QueryBoundary";
+import AuthImage from "@/components/AuthImage";
 
 const IMPORT_TEMPLATE = {
   name: "My Trip to Japan",
@@ -181,11 +182,10 @@ export default function PlansPage() {
                     className="block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]"
                   >
                     <div className="relative h-48 overflow-hidden bg-gray-100 dark:bg-gray-700">
-                      <Image
+                      <AuthImage
                         src={getImageUrl(plan.coverPhoto, 800)}
                         alt={plan.name}
                         fill
-                        unoptimized
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
