@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 
 	"beyond/backend/internal/data"
 	"beyond/backend/internal/handlers"
+	"beyond/backend/internal/jobs"
 )
 
 // version is set at build time via -ldflags "-X main.version=x.y.z"
@@ -45,7 +47,11 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 // Supports ?w=<size> to return a thumbnail fitting within size×size (aspect
 // preserved). Allowed sizes: see data.AllowedThumbnailSizes. Without ?w=,
 // returns the original bytes as stored.
-func makeImageHandler(store data.FileStore) http.HandlerFunc {
+//
+// Ownership check: the requesting user must be the one who uploaded the file
+// (per the uploads manifest). Returns 404 for missing or unowned files to
+// avoid leaking which filenames exist.
+func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers FIRST, before any headers are written
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -72,6 +78,24 @@ func makeImageHandler(store data.FileStore) http.HandlerFunc {
 		if filename == "" {
 			http.Error(w, "No image specified", http.StatusBadRequest)
 			return
+		}
+
+		// Ownership check — requesterID is populated by the auth middleware.
+		if db != nil {
+			requesterID := handlers.GetUserID(r.Context())
+			var ownerID string
+			dbErr := db.QueryRowContext(r.Context(),
+				`SELECT user_id FROM uploads WHERE key = $1`, filename,
+			).Scan(&ownerID)
+			if dbErr == sql.ErrNoRows || (dbErr == nil && ownerID != requesterID) {
+				http.Error(w, "Image not found", http.StatusNotFound)
+				return
+			}
+			if dbErr != nil {
+				log.Printf("Image ownership check error for %s: %v", filename, dbErr)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
 		}
 
 		var (
@@ -188,7 +212,7 @@ func main() {
 	if storage != nil {
 		uploader = storage
 	}
-	uploadHandler := handlers.NewUploadHandler(uploader)
+	uploadHandler := handlers.NewUploadHandler(uploader, db)
 
 	// Google Photos integration (optional — only enabled if env vars present)
 	var handlersPP *photopicker.Handlers
@@ -209,7 +233,7 @@ func main() {
 			OAuth:           photopicker.NewOAuthConfig(googleClientID, googleClientSecret, googleRedirectURL),
 			TokenStore:      tokenStore,
 			ImportStore:     importStore,
-			Sink:            handlers.NewBeyondSink(uploader),
+			Sink:            handlers.NewBeyondSink(uploader, db),
 			MaxDecodedBytes: 500 << 20,
 		})
 		if err != nil {
@@ -242,6 +266,15 @@ func main() {
 		log.Println("Google Photos integration enabled")
 	} else {
 		log.Println("Google Photos integration disabled (missing env vars)")
+	}
+
+	// Launch background orphan cleanup goroutine.
+	{
+		cleanupCtx, cancelCleanup := context.WithCancel(context.Background())
+		defer cancelCleanup()
+		if uploader != nil {
+			go jobs.RunOrphanCleanup(cleanupCtx, db, uploader)
+		}
 	}
 
 	// Create server
@@ -348,9 +381,17 @@ func main() {
 		}
 	}))
 
-	realImageHandler := makeImageHandler(storage)
-	mux.HandleFunc("/v1/image/", realImageHandler)
-	mux.HandleFunc("/v1/image", realImageHandler)
+	mux.HandleFunc("/v1/upload/", authed(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "DELETE" {
+			uploadHandler.HandleDelete(w, r)
+		} else {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+
+	realImageHandler := makeImageHandler(storage, db)
+	mux.HandleFunc("/v1/image/", authed(realImageHandler))
+	mux.HandleFunc("/v1/image", authed(realImageHandler))
 
 	// Google Photos routes — only mounted if the integration is configured.
 	if handlersPP != nil {

@@ -16,6 +16,7 @@ import (
 type FileStore interface {
 	UploadFile(ctx context.Context, filename string, reader io.Reader, size int64, contentType string) (string, error)
 	GetFile(ctx context.Context, filename string) (io.ReadCloser, string, error)
+	DeleteFile(ctx context.Context, filename string) error
 }
 
 type Storage struct {
@@ -101,11 +102,19 @@ func (s *Storage) GetFile(ctx context.Context, filename string) (io.ReadCloser, 
 	if err != nil {
 		return nil, "", err
 	}
-	
+
 	var contentType string
 	if result.ContentType != nil {
 		contentType = *result.ContentType
 	}
-	
+
 	return result.Body, contentType, nil
+}
+
+func (s *Storage) DeleteFile(ctx context.Context, filename string) error {
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(filename),
+	})
+	return err
 }
