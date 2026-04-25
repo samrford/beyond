@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
 import { X, Loader2 } from "lucide-react";
-import CheckpointForm, { CheckpointData } from "./CheckpointForm";
+import CheckpointForm, { CheckpointData, CheckpointFormHandle } from "./CheckpointForm";
 import { Checkpoint } from "@/lib/queries/trips";
 
 interface CheckpointModalProps {
@@ -22,6 +22,8 @@ export default function CheckpointModal({
   isSaving,
   title,
 }: CheckpointModalProps) {
+  const formRef = useRef<CheckpointFormHandle>(null);
+
   if (!isOpen) return null;
 
   return (
@@ -31,8 +33,8 @@ export default function CheckpointModal({
           <h2 className="text-xl font-bold text-gray-900 dark:text-white">
             {title}
           </h2>
-          <button 
-            onClick={onClose}
+          <button
+            onClick={() => formRef.current ? formRef.current.requestClose() : onClose()}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X size={20} />
@@ -47,6 +49,7 @@ export default function CheckpointModal({
             </div>
           ) : (
             <CheckpointForm
+              ref={formRef}
               initialData={checkpoint}
               onSubmit={onSubmit}
               onCancel={onClose}
