@@ -206,10 +206,11 @@ func main() {
 		}
 		importStore := ppg.NewImportStore(db)
 		client, err := photopicker.New(photopicker.Config{
-			OAuth:       photopicker.NewOAuthConfig(googleClientID, googleClientSecret, googleRedirectURL),
-			TokenStore:  tokenStore,
-			ImportStore: importStore,
-			Sink:        handlers.NewBeyondSink(uploader),
+			OAuth:           photopicker.NewOAuthConfig(googleClientID, googleClientSecret, googleRedirectURL),
+			TokenStore:      tokenStore,
+			ImportStore:     importStore,
+			Sink:            handlers.NewBeyondSink(uploader),
+			MaxDecodedBytes: 500 << 20,
 		})
 		if err != nil {
 			log.Fatalf("photopicker: %v", err)

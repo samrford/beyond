@@ -55,7 +55,7 @@ func (h *UploadHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	body := raw
 	contentType := sniffed
-	if compressed, ct, cerr := data.CompressOriginal(raw); cerr == nil {
+	if compressed, ct, cerr := data.CompressOriginal(r.Context(), raw); cerr == nil {
 		body = compressed
 		contentType = ct
 	} else {

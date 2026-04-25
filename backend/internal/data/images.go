@@ -2,6 +2,7 @@ package data
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"image"
 
@@ -16,9 +17,15 @@ const MaxOriginalEdge = 3000
 // MaxOriginalEdge (aspect preserved), and re-encodes in the detected
 // format. On decode error, the caller should fall back to storing the
 // raw bytes unchanged.
-func CompressOriginal(raw []byte) ([]byte, string, error) {
-	img, format, err := image.Decode(bytes.NewReader(raw))
-	if err != nil {
+func CompressOriginal(ctx context.Context, raw []byte) ([]byte, string, error) {
+	var img image.Image
+	var format string
+
+	if err := withDecodeSlot(ctx, func() error {
+		var err error
+		img, format, err = image.Decode(bytes.NewReader(raw))
+		return err
+	}); err != nil {
 		return nil, "", fmt.Errorf("decode: %w", err)
 	}
 

@@ -34,7 +34,7 @@ func (s *beyondSink) SavePhoto(ctx context.Context, _, _ string, p photopicker.D
 
 	body := raw
 	ct := sniffed
-	if compressed, c, cerr := data.CompressOriginal(raw); cerr == nil {
+	if compressed, c, cerr := data.CompressOriginal(ctx, raw); cerr == nil {
 		body = compressed
 		ct = c
 	} else {

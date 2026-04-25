@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.12.3
 	github.com/pressly/goose/v3 v3.27.0
-	github.com/samrford/google-photos-picker v0.1.0
+	github.com/samrford/google-photos-picker v0.2.0
 	github.com/stretchr/testify v1.11.1
 )
 
