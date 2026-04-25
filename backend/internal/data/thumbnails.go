@@ -66,27 +66,41 @@ func GetOrCreateThumbnail(ctx context.Context, store FileStore, original string,
 		return nil, "", fmt.Errorf("read original: %w", err)
 	}
 
-	img, format, err := image.Decode(bytes.NewReader(origBytes))
-	if err != nil {
-		return nil, "", fmt.Errorf("decode: %w", err)
+	var resized []byte
+	var outCT string
+	var tooSmall bool
+
+	if err := withDecodeSlot(ctx, func() error {
+		img, format, err := image.Decode(bytes.NewReader(origBytes))
+		if err != nil {
+			return fmt.Errorf("decode: %w", err)
+		}
+
+		// If the image is already smaller than the target box, serve the original
+		// without caching — avoids storing duplicate bytes under the thumbnail key.
+		b := img.Bounds()
+		if b.Dx() <= size && b.Dy() <= size {
+			tooSmall = true
+			return nil
+		}
+
+		fitted := imaging.Fit(img, size, size, imaging.Lanczos)
+
+		var out bytes.Buffer
+		outCT, err = encode(&out, fitted, format)
+		if err != nil {
+			return fmt.Errorf("encode: %w", err)
+		}
+		resized = out.Bytes()
+		return nil
+	}); err != nil {
+		return nil, "", err
 	}
 
-	// If the image is already smaller than the target box, serve the original
-	// without caching — avoids storing duplicate bytes under the thumbnail key.
-	b := img.Bounds()
-	if b.Dx() <= size && b.Dy() <= size {
+	if tooSmall {
 		return io.NopCloser(bytes.NewReader(origBytes)), origCT, nil
 	}
 
-	fitted := imaging.Fit(img, size, size, imaging.Lanczos)
-
-	var out bytes.Buffer
-	outCT, err := encode(&out, fitted, format)
-	if err != nil {
-		return nil, "", fmt.Errorf("encode: %w", err)
-	}
-
-	resized := out.Bytes()
 	if _, err := store.UploadFile(ctx, cacheKey, bytes.NewReader(resized), int64(len(resized)), outCT); err != nil {
 		return nil, "", fmt.Errorf("cache: %w", err)
 	}
