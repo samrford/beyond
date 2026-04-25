@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, FormEvent, useRef } from "react";
+import { useState, FormEvent, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Monitor, Trash2, Star } from "lucide-react";
+import { apiDelete } from "@/lib/api";
 import {
   DndContext,
   closestCenter,
@@ -20,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { useUpload } from "@/app/hooks/useUpload";
 import { getImageUrl } from "@/lib/api";
+import AuthImage from "@/components/AuthImage";
 import RichTextEditor from "./RichTextEditor";
 import DateTimePicker from "./DateTimePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
@@ -64,12 +66,11 @@ function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePh
       {/* Drag handle covers the whole tile */}
       <div {...attributes} {...listeners} className="absolute inset-0 cursor-grab active:cursor-grabbing z-10" />
 
-      <Image
+      <AuthImage
         src={getImageUrl(photo, 800)}
         alt={`Photo ${index + 1}`}
         fill
         className="object-cover transition-transform group-hover:scale-110"
-        unoptimized
       />
 
       {/* Hero badge */}
@@ -126,8 +127,22 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     heroPhoto: initialData?.heroPhoto || "",
   });
 
-  const { upload, uploading: isUploading } = useUpload();
+  const pendingUploads = useRef<Set<string>>(new Set());
+
+  const { upload, uploading: isUploading } = useUpload((filename) => {
+    pendingUploads.current.add(filename);
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // On unmount, delete any uploads that were never saved.
+  useEffect(() => {
+    return () => {
+      pendingUploads.current.forEach((filename) => {
+        apiDelete(`/v1/upload/${filename}`);
+      });
+    };
+  }, []);
+
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -160,6 +175,12 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
   };
 
   const removePhoto = (index: number) => {
+    const photo = formData.photos[index];
+    // Fire-and-forget delete if the photo was uploaded this session.
+    if (pendingUploads.current.has(photo)) {
+      pendingUploads.current.delete(photo);
+      apiDelete(`/v1/upload/${photo}`);
+    }
     setFormData(prev => ({
       ...prev,
       photos: prev.photos.filter((_, i) => i !== index)
@@ -184,6 +205,8 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     };
 
     await onSubmit(submissionData);
+    // Files are now saved — clear the pending set so unmount doesn't delete them.
+    pendingUploads.current.clear();
   };
 
   return (
@@ -288,6 +311,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
               variant="card"
               onSelect={(urls) => {
                 if (!urls.length) return;
+                urls.forEach((u) => pendingUploads.current.add(u));
                 setFormData((prev) => ({
                   ...prev,
                   photos: [...prev.photos, ...urls],
@@ -346,7 +370,14 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
       <div className="flex justify-end gap-3 pt-4 px-2">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            // Delete all pending (unsaved) uploads before cancelling.
+            pendingUploads.current.forEach((filename) => {
+              apiDelete(`/v1/upload/${filename}`);
+            });
+            pendingUploads.current.clear();
+            onCancel();
+          }}
           disabled={isLoading}
           className="px-6 py-3 text-sm font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors uppercase tracking-widest"
         >

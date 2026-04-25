@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"log"
@@ -14,14 +15,18 @@ import (
 	"beyond/backend/internal/data"
 )
 
-type beyondSink struct{ fs data.FileStore }
-
-// NewBeyondSink returns a photopicker.PhotoSink that uploads photos to MinIO.
-func NewBeyondSink(fs data.FileStore) photopicker.PhotoSink {
-	return &beyondSink{fs: fs}
+type beyondSink struct {
+	fs data.FileStore
+	db *sql.DB
 }
 
-func (s *beyondSink) SavePhoto(ctx context.Context, _, _ string, p photopicker.DownloadedPhoto) (string, error) {
+// NewBeyondSink returns a photopicker.PhotoSink that uploads photos to MinIO
+// and records their ownership in the uploads manifest.
+func NewBeyondSink(fs data.FileStore, db *sql.DB) photopicker.PhotoSink {
+	return &beyondSink{fs: fs, db: db}
+}
+
+func (s *beyondSink) SavePhoto(ctx context.Context, userID, _ string, p photopicker.DownloadedPhoto) (string, error) {
 	raw, err := io.ReadAll(p.Bytes)
 	if err != nil {
 		return "", fmt.Errorf("read photo: %w", err)
@@ -46,5 +51,22 @@ func (s *beyondSink) SavePhoto(ctx context.Context, _, _ string, p photopicker.D
 		ext = ".png"
 	}
 
-	return s.fs.UploadFile(ctx, uuid.New().String()+ext, bytes.NewReader(body), int64(len(body)), ct)
+	filename, err := s.fs.UploadFile(ctx, uuid.New().String()+ext, bytes.NewReader(body), int64(len(body)), ct)
+	if err != nil {
+		return "", err
+	}
+
+	if s.db != nil {
+		_, dbErr := s.db.ExecContext(ctx,
+			`INSERT INTO uploads (key, user_id) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING`,
+			filename, userID,
+		)
+		if dbErr != nil {
+			// If we fail to record ownership, clean up the file from storage so it doesn't sit orphaned
+			_ = s.fs.DeleteFile(ctx, filename)
+			return "", fmt.Errorf("failed to record upload manifest: %w", dbErr)
+		}
+	}
+
+	return filename, nil
 }

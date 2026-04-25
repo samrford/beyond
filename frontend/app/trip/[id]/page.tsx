@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
 import CheckpointCard from "@/components/CheckpointCard";
@@ -14,6 +13,7 @@ import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCr
 import { CheckpointData } from "@/components/CheckpointForm";
 import { getImageUrl } from "@/lib/api";
 import toast from "react-hot-toast";
+import AuthImage from "@/components/AuthImage";
 
 export default function TripPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -109,12 +109,11 @@ export default function TripPage({ params }: { params: { id: string } }) {
       <PageTransition>
         {/* Header Section */}
       <div className="relative h-64 bg-gray-300 dark:bg-gray-800">
-        <Image
+        <AuthImage
           src={getImageUrl(trip.headerPhoto, 2400)}
           alt={trip.name}
           fill
           className="object-cover"
-          unoptimized
         />
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 dark:from-gray-900 to-transparent h-16" />
       </div>

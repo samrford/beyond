@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import Image from "next/image";
+import { useState, useEffect, useRef } from "react";
 import { useUpload } from "@/app/hooks/useUpload";
 import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-react";
 import { LucideIcon } from "lucide-react";
+import AuthImage from "@/components/AuthImage";
 
 // Workaround for import issue if needed, but standardizing on lucide-react
 import {
@@ -14,7 +14,7 @@ import {
   MapPin as MapPinIcon,
   AlignLeft as AlignLeftIcon
 } from "lucide-react";
-import { getImageUrl } from "@/lib/api";
+import { getImageUrl, apiDelete } from "@/lib/api";
 import DatePicker from "./DatePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
 import { Plan } from "@/lib/queries/plans";
@@ -35,7 +35,21 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
   });
 
 
-  const { upload, uploading, previewUrl } = useUpload();
+  const pendingUploads = useRef<Set<string>>(new Set());
+
+  const { upload, uploading, previewUrl } = useUpload((filename) => {
+    pendingUploads.current.add(filename);
+  });
+
+  // Delete any pending (unsaved) uploads when this component unmounts
+  // (covers cancel via window.history.back() + hard refresh).
+  useEffect(() => {
+    return () => {
+      pendingUploads.current.forEach((filename) => {
+        apiDelete(`/v1/upload/${filename}`);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (initialData && !formData.name && !formData.coverPhoto) {
@@ -72,6 +86,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
       endDate: formData.endDate ? `${formData.endDate}T00:00:00Z` : "",
     };
     onSubmit(submissionData);
+    pendingUploads.current.clear();
   };
 
   return (
@@ -121,11 +136,10 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
         <div className="relative group overflow-hidden bg-gray-100 dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 aspect-video flex flex-col items-center justify-center transition-all hover:border-primary-500 active:scale-[0.98]">
            {(previewUrl || formData.coverPhoto) ? (
              <>
-               <Image 
+               <AuthImage
                  src={previewUrl || getImageUrl(formData.coverPhoto, 1600)}
-                 alt="Preview" 
+                 alt="Preview"
                  fill
-                 unoptimized
                  className="object-cover group-hover:scale-105 transition-transform duration-500"
                />
                <button 
@@ -157,6 +171,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
             maxItems={1}
             onSelect={(urls) => {
               if (urls[0]) {
+                pendingUploads.current.add(urls[0]);
                 setFormData((prev) => ({ ...prev, coverPhoto: urls[0] }));
               }
             }}

@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, FormEvent } from "react";
-import Image from "next/image";
+import { useState, FormEvent, useRef, useEffect } from "react";
 import { Upload, X, Calendar, AlignLeft } from "lucide-react";
 import { useUpload } from "@/app/hooks/useUpload";
-import { getImageUrl } from "@/lib/api";
+import { getImageUrl, apiDelete } from "@/lib/api";
+import AuthImage from "@/components/AuthImage";
 import DatePicker from "./DatePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
 
@@ -43,14 +43,34 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     summary: initialData?.summary || "",
   });
   
-  const { upload, uploading: isUploading } = useUpload();
+  const pendingUploads = useRef<Set<string>>(new Set());
+
+  const { upload, uploading: isUploading } = useUpload((filename) => {
+    pendingUploads.current.add(filename);
+  });
+
+  // Delete any pending (unsaved) uploads when this component unmounts.
+  useEffect(() => {
+    return () => {
+      pendingUploads.current.forEach((filename) => {
+        apiDelete(`/v1/upload/${filename}`);
+      });
+    };
+  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const url = await upload(file);
     if (url) {
-      setFormData((prev) => ({ ...prev, headerPhoto: url }));
+      // Remove previous header photo from pending (if any) before replacing.
+      setFormData((prev) => {
+        if (prev.headerPhoto && pendingUploads.current.has(prev.headerPhoto)) {
+          pendingUploads.current.delete(prev.headerPhoto);
+          apiDelete(`/v1/upload/${prev.headerPhoto}`);
+        }
+        return { ...prev, headerPhoto: url };
+      });
     }
   };
 
@@ -61,7 +81,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     // Ensure dates are parsed to RFC3339 for backend compatibility
     const submissionData = {
       ...formData,
@@ -70,6 +90,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     };
 
     await onSubmit(submissionData);
+    pendingUploads.current.clear();
   };
 
   return (
@@ -123,12 +144,11 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
         <div className="relative group overflow-hidden bg-gray-100 dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-700 aspect-video flex flex-col items-center justify-center transition-all hover:border-primary-500 active:scale-[0.98]">
           {formData.headerPhoto ? (
             <>
-              <Image
+              <AuthImage
                 src={getImageUrl(formData.headerPhoto, 1600)}
                 alt="Header Preview"
                 fill
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
-                unoptimized
               />
               <button
                 type="button"
@@ -159,6 +179,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
             maxItems={1}
             onSelect={(urls) => {
               if (urls[0]) {
+                pendingUploads.current.add(urls[0]);
                 setFormData((prev) => ({ ...prev, headerPhoto: urls[0] }));
               }
             }}
@@ -184,7 +205,13 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
       <div className="flex gap-4 pt-4">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={() => {
+            pendingUploads.current.forEach((filename) => {
+              apiDelete(`/v1/upload/${filename}`);
+            });
+            pendingUploads.current.clear();
+            onCancel();
+          }}
           disabled={isLoading}
           className="flex-1 py-3 px-6 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-[0.98]"
         >

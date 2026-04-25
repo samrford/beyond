@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import { Pencil, Trash2, X, ArrowLeft, Maximize2, Minimize2 } from "lucide-react";
 import { getImageUrl } from "@/lib/api";
+import AuthImage from "@/components/AuthImage";
+import { useAuthenticatedImage, preloadAuthImage } from "@/app/hooks/useAuthenticatedImage";
 
 interface Checkpoint {
   id: string;
@@ -43,13 +44,21 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
 
   useEffect(() => {
     if (!photoModalOpen) return;
-    photos.forEach(photo => {
-      if (aspectRatios.has(photo)) return;
-      const img = new window.Image();
-      img.onload = () => {
-        setAspectRatios(prev => new Map(prev).set(photo, img.naturalWidth / img.naturalHeight));
-      };
-      img.src = getImageUrl(photo, 400);
+    // Fetch each photo to measure natural dimensions for the
+    // aspect-ratio layout. Responses also warm the hook's blob cache so
+    // thumbnails render instantly when the gallery grid mounts.
+    photos.forEach((photo) => {
+      const url = getImageUrl(photo, 400);
+      preloadAuthImage(url).then((blobUrl) => {
+        if (!blobUrl) return;
+        const tmp = new window.Image();
+        tmp.onload = () => {
+          setAspectRatios((prev) =>
+            new Map(prev).set(photo, tmp.naturalWidth / tmp.naturalHeight)
+          );
+        };
+        tmp.src = blobUrl;
+      });
     });
   }, [photoModalOpen]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -141,17 +150,18 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                 aspectRatio: String(aspectRatios.get(heroPhoto) ?? 4 / 3),
               }}
             >
-              <Image
+              <AuthImage
                 src={getImageUrl(heroPhoto, 1600)}
                 alt={`${checkpoint.name} 1`}
                 fill
                 className="object-cover"
                 onLoad={(e) => {
-                  const { naturalWidth, naturalHeight } = e.currentTarget;
-                  if (naturalWidth && naturalHeight)
-                    setAspectRatios(prev => new Map(prev).set(heroPhoto, naturalWidth / naturalHeight));
+                  const img = e.currentTarget as HTMLImageElement;
+                  if (img.naturalWidth && img.naturalHeight)
+                    setAspectRatios((prev) =>
+                      new Map(prev).set(heroPhoto, img.naturalWidth / img.naturalHeight)
+                    );
                 }}
-                unoptimized
               />
             </div>
 
@@ -161,12 +171,11 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                 {[1, 2].map((i) =>
                   photos[i] ? (
                     <div key={i} className="relative flex-1 overflow-hidden">
-                      <Image
+                      <AuthImage
                         src={getImageUrl(photos[i], 400)}
                         alt={`${checkpoint.name} ${i + 1}`}
                         fill
                         className="object-cover"
-                        unoptimized
                       />
                     </div>
                   ) : (
@@ -181,12 +190,11 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                       onClick={() => setPhotoModalOpen(true)}
                       className="relative flex-1 overflow-hidden"
                     >
-                      <Image
+                      <AuthImage
                         src={getImageUrl(photos[3], 400)}
                         alt={`${checkpoint.name} 4`}
                         fill
                         className="object-cover"
-                        unoptimized
                       />
                       <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                         <span className="text-white font-bold text-sm">+{overflowCount}</span>
@@ -194,12 +202,11 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                     </button>
                   ) : (
                     <div className="relative flex-1 overflow-hidden">
-                      <Image
+                      <AuthImage
                         src={getImageUrl(photos[3], 400)}
                         alt={`${checkpoint.name} 4`}
                         fill
                         className="object-cover"
-                        unoptimized
                       />
                     </div>
                   )
@@ -291,14 +298,10 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
 
             <div className={selectedPhoto && fitToScreen ? "flex items-center justify-center p-4 min-h-0 flex-1" : "overflow-y-auto p-4"}>
               {selectedPhoto ? (
-                <Image
+                <AuthImage
                   src={getImageUrl(selectedPhoto, 2400)}
                   alt={checkpoint.name}
-                  width={0}
-                  height={0}
-                  sizes="95vw"
                   className={fitToScreen ? "max-h-[calc(95vh-80px)] w-auto max-w-full rounded-lg object-contain" : "w-full h-auto rounded-lg"}
-                  unoptimized
                 />
               ) : (
                 <div className="flex flex-col gap-1.5">
@@ -321,12 +324,11 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                               }}
                               className="relative overflow-hidden rounded-lg hover:opacity-90 transition-opacity"
                             >
-                              <Image
+                              <AuthImage
                                 src={getImageUrl(photo, 800)}
                                 alt={`${checkpoint.name} ${i + 1}`}
                                 fill
                                 className="object-cover"
-                                unoptimized
                               />
                             </button>
                           );
