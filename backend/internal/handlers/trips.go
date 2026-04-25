@@ -54,10 +54,10 @@ func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 
-	row := h.db.QueryRow("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE id = $1 AND user_id = $2", id, userID)
+	row := h.db.QueryRow("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness FROM trips WHERE id = $1 AND user_id = $2", id, userID)
 
 	var t data.Trip
-	if err := row.Scan(&t.ID, &t.Name, &t.StartDate, &t.EndDate, &t.HeaderPhoto, &t.Summary); err != nil {
+	if err := row.Scan(&t.ID, &t.Name, &t.StartDate, &t.EndDate, &t.HeaderPhoto, &t.Summary, &t.BgMode, &t.BgBlur, &t.BgOpacity, &t.BgDarkness); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Trip not found"})
@@ -135,8 +135,8 @@ func (h *TripsHandler) UpdateTrip(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err := h.db.Exec(
-		"UPDATE trips SET name = $1, start_date = $2, end_date = $3, header_photo = $4, summary = $5 WHERE id = $6 AND user_id = $7",
-		t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary, id, userID,
+		"UPDATE trips SET name = $1, start_date = $2, end_date = $3, header_photo = $4, summary = $5, bg_mode = $6, bg_blur = $7, bg_opacity = $8, bg_darkness = $9 WHERE id = $10 AND user_id = $11",
+		t.Name, t.StartDate, t.EndDate, t.HeaderPhoto, t.Summary, t.BgMode, t.BgBlur, t.BgOpacity, t.BgDarkness, id, userID,
 	)
 	if err != nil {
 		log.Printf("Error updating trip: %v", err)

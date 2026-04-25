@@ -12,21 +12,32 @@ export const metadata: Metadata = {
   description: "Catalog and share your traveling adventures",
 };
 
+// Runs synchronously during HTML parse, before React hydrates.
+// Applies the `dark` class immediately so there is no flash of light mode.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <ThemeClient initialState={{ theme: "system" }}>
-      <QueryProvider>
-        <AuthProvider>
-          <AuthLayoutWrapper>
-            {children}
-          </AuthLayoutWrapper>
-          <Toaster position="bottom-right" />
-        </AuthProvider>
-      </QueryProvider>
-    </ThemeClient>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
+      <body className="antialiased text-gray-900 bg-white dark:bg-gray-900 dark:text-gray-100 min-h-screen">
+        <ThemeClient>
+          <QueryProvider>
+            <AuthProvider>
+              <AuthLayoutWrapper>
+                {children}
+              </AuthLayoutWrapper>
+              <Toaster position="bottom-right" />
+            </AuthProvider>
+          </QueryProvider>
+        </ThemeClient>
+      </body>
+    </html>
   );
 }

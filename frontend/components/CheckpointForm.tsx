@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useRef, useEffect } from "react";
+import { useState, FormEvent, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
 import Image from "next/image";
 import { Monitor, Trash2, Star } from "lucide-react";
 import { apiDelete } from "@/lib/api";
@@ -25,6 +25,7 @@ import AuthImage from "@/components/AuthImage";
 import RichTextEditor from "./RichTextEditor";
 import DateTimePicker from "./DateTimePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
+import ConfirmModal from "./ConfirmModal";
 
 export interface CheckpointData {
   name: string;
@@ -41,6 +42,10 @@ interface CheckpointFormProps {
   onSubmit: (data: CheckpointData) => Promise<void>;
   onCancel: () => void;
   isLoading?: boolean;
+}
+
+export interface CheckpointFormHandle {
+  requestClose: () => void;
 }
 
 interface SortablePhotoProps {
@@ -116,7 +121,10 @@ const formatDatetimeForInput = (dateString?: string) => {
   }
 };
 
-export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoading }: CheckpointFormProps) {
+const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(function CheckpointForm(
+  { initialData, onSubmit, onCancel, isLoading }: CheckpointFormProps,
+  ref
+) {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     location: initialData?.location || "",
@@ -126,6 +134,9 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     journal: initialData?.journal || "",
     heroPhoto: initialData?.heroPhoto || "",
   });
+
+  const [isDirty, setIsDirty] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const pendingUploads = useRef<Set<string>>(new Set());
 
@@ -149,6 +160,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
+      setIsDirty(true);
       setFormData(prev => {
         const oldIndex = prev.photos.indexOf(active.id as string);
         const newIndex = prev.photos.indexOf(over.id as string);
@@ -158,6 +170,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
   };
 
   const setHeroPhoto = (photo: string) => {
+    setIsDirty(true);
     setFormData(prev => ({ ...prev, heroPhoto: photo }));
   };
 
@@ -168,6 +181,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     const urls = await Promise.all(files.map(f => upload(f)));
     const succeeded = urls.filter((u): u is string => !!u);
     if (succeeded.length) {
+      setIsDirty(true);
       setFormData(prev => ({ ...prev, photos: [...prev.photos, ...succeeded] }));
     }
 
@@ -181,6 +195,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
       pendingUploads.current.delete(photo);
       apiDelete(`/v1/upload/${photo}`);
     }
+    setIsDirty(true);
     setFormData(prev => ({
       ...prev,
       photos: prev.photos.filter((_, i) => i !== index)
@@ -188,11 +203,13 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setIsDirty(true);
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleJournalChange = (html: string) => {
+    setIsDirty(true);
     setFormData((prev) => ({ ...prev, journal: html }));
   };
 
@@ -205,11 +222,24 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
     };
 
     await onSubmit(submissionData);
-    // Files are now saved — clear the pending set so unmount doesn't delete them.
     pendingUploads.current.clear();
+    setIsDirty(false);
   };
 
+  const handleCancel = () => {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      pendingUploads.current.forEach((filename) => apiDelete(`/v1/upload/${filename}`));
+      pendingUploads.current.clear();
+      onCancel();
+    }
+  };
+
+  useImperativeHandle(ref, () => ({ requestClose: handleCancel }));
+
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* Event Name */}
       <div className="p-6 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border-2 border-gray-100 dark:border-gray-800 space-y-3">
@@ -370,14 +400,7 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
       <div className="flex justify-end gap-3 pt-4 px-2">
         <button
           type="button"
-          onClick={() => {
-            // Delete all pending (unsaved) uploads before cancelling.
-            pendingUploads.current.forEach((filename) => {
-              apiDelete(`/v1/upload/${filename}`);
-            });
-            pendingUploads.current.clear();
-            onCancel();
-          }}
+          onClick={handleCancel}
           disabled={isLoading}
           className="px-6 py-3 text-sm font-bold text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors uppercase tracking-widest"
         >
@@ -392,5 +415,22 @@ export default function CheckpointForm({ initialData, onSubmit, onCancel, isLoad
         </button>
       </div>
     </form>
+
+    <ConfirmModal
+      isOpen={showCancelConfirm}
+      title="Discard changes?"
+      message="You have unsaved changes. If you close now, they'll be lost."
+      confirmLabel="Discard changes"
+      onConfirm={() => {
+        setShowCancelConfirm(false);
+        pendingUploads.current.forEach((filename) => apiDelete(`/v1/upload/${filename}`));
+        pendingUploads.current.clear();
+        onCancel();
+      }}
+      onCancel={() => setShowCancelConfirm(false)}
+    />
+    </>
   );
-}
+});
+
+export default CheckpointForm;

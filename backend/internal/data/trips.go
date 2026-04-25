@@ -12,6 +12,10 @@ type Trip struct {
 	EndDate     time.Time    `json:"endDate"`
 	HeaderPhoto string       `json:"headerPhoto"`
 	Summary     string       `json:"summary"`
+	BgMode      string       `json:"bgMode"`
+	BgBlur      int          `json:"bgBlur"`
+	BgOpacity   int          `json:"bgOpacity"`
+	BgDarkness  int          `json:"bgDarkness"`
 	Checkpoints []Checkpoint `json:"checkpoints"`
 }
 

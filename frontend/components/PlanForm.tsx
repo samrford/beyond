@@ -17,6 +17,7 @@ import {
 import { getImageUrl, apiDelete } from "@/lib/api";
 import DatePicker from "./DatePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
+import ConfirmModal from "./ConfirmModal";
 import { Plan } from "@/lib/queries/plans";
 
 interface PlanFormProps {
@@ -26,6 +27,9 @@ interface PlanFormProps {
 }
 
 export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormProps) {
+  const [isDirty, setIsDirty] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
   const [formData, setFormData] = useState({
     name: "",
     startDate: "",
@@ -64,6 +68,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
   }, [initialData, formData.name, formData.coverPhoto]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setIsDirty(true);
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -73,6 +78,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     if (file) {
       const url = await upload(file);
       if (url) {
+        setIsDirty(true);
         setFormData((prev) => ({ ...prev, coverPhoto: url }));
       }
     }
@@ -87,9 +93,11 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     };
     onSubmit(submissionData);
     pendingUploads.current.clear();
+    setIsDirty(false);
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 flex items-center gap-2">
@@ -113,7 +121,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
           </label>
           <DatePicker
             value={formData.startDate}
-            onChange={(v) => setFormData((prev) => ({ ...prev, startDate: v }))}
+            onChange={(v) => { setIsDirty(true); setFormData((prev) => ({ ...prev, startDate: v })); }}
             placeholder="Select a date"
           />
         </div>
@@ -123,7 +131,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
           </label>
           <DatePicker
             value={formData.endDate}
-            onChange={(v) => setFormData((prev) => ({ ...prev, endDate: v }))}
+            onChange={(v) => { setIsDirty(true); setFormData((prev) => ({ ...prev, endDate: v })); }}
             placeholder="Select a date"
           />
         </div>
@@ -142,9 +150,9 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
                  fill
                  className="object-cover group-hover:scale-105 transition-transform duration-500"
                />
-               <button 
-                 type="button" 
-                 onClick={() => { setFormData(prev => ({...prev, coverPhoto: ""})) }}
+               <button
+                 type="button"
+                 onClick={() => { setIsDirty(true); setFormData(prev => ({...prev, coverPhoto: ""})); }}
                  className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
                >
                  <XIcon size={16} />
@@ -171,6 +179,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
             maxItems={1}
             onSelect={(urls) => {
               if (urls[0]) {
+                setIsDirty(true);
                 pendingUploads.current.add(urls[0]);
                 setFormData((prev) => ({ ...prev, coverPhoto: urls[0] }));
               }
@@ -196,7 +205,13 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
       <div className="flex gap-4 pt-4">
         <button
           type="button"
-          onClick={() => window.history.back()}
+          onClick={() => {
+            if (isDirty) {
+              setShowCancelConfirm(true);
+            } else {
+              window.history.back();
+            }
+          }}
           className="flex-1 py-3 px-6 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-700 rounded-lg font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-[0.98]"
         >
           Cancel
@@ -210,5 +225,18 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
         </button>
       </div>
     </form>
+
+    <ConfirmModal
+      isOpen={showCancelConfirm}
+      title="Discard changes?"
+      message="You have unsaved changes. If you leave now, they'll be lost."
+      confirmLabel="Discard changes"
+      onConfirm={() => {
+        setShowCancelConfirm(false);
+        window.history.back();
+      }}
+      onCancel={() => setShowCancelConfirm(false)}
+    />
+    </>
   );
 }

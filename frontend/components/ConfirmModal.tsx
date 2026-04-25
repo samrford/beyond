@@ -6,6 +6,7 @@ interface ConfirmModalProps {
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
+  confirmLabel?: string;
 }
 
 export default function ConfirmModal({
@@ -14,6 +15,7 @@ export default function ConfirmModal({
   message,
   onConfirm,
   onCancel,
+  confirmLabel = "Delete",
 }: ConfirmModalProps) {
   if (!isOpen) return null;
 
@@ -37,7 +39,7 @@ export default function ConfirmModal({
             onClick={onConfirm}
             className="inline-flex justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
           >
-            Delete
+            {confirmLabel}
           </button>
         </div>
       </div>

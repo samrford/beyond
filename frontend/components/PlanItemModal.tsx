@@ -49,6 +49,8 @@ export default function PlanItemModal({
   isSelectingLocation = false
 }: PlanItemModalProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const [formData, setFormData] = useState({
     name: item.name || "",
@@ -74,16 +76,27 @@ export default function PlanItemModal({
         startTime: extractHHMM(item.startTime),
       });
       setShowDeleteConfirm(false);
+      setIsDirty(false);
     }
   }, [isOpen, item.id, item.name, item.description, item.location, item.latitude, item.longitude, item.duration, item.startTime]); // Satisfy ESLint while maintaining business logic
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setIsDirty(true);
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleDescriptionChange = (html: string) => {
+    setIsDirty(true);
     setFormData((prev) => ({ ...prev, description: html }));
+  };
+
+  const handleClose = () => {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      onClose();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,6 +110,7 @@ export default function PlanItemModal({
         duration: parseInt(formData.duration.toString()) || 0,
         startTime: formData.startTime ? `${formData.startTime}:00` : null,
       });
+      setIsDirty(false);
       toast.success("Activity saved!");
       onClose();
     } catch (error) {
@@ -132,7 +146,7 @@ export default function PlanItemModal({
             Configure Activity
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           >
             <X size={20} />
@@ -274,7 +288,7 @@ export default function PlanItemModal({
         <div className="px-6 py-5 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex justify-end items-center gap-4 rounded-b-xl">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="text-xs font-black uppercase tracking-[0.2em] text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
           >
             Cancel
@@ -311,6 +325,18 @@ export default function PlanItemModal({
             setShowDeleteConfirm(false);
           }}
           onCancel={() => setShowDeleteConfirm(false)}
+        />
+
+        <ConfirmModal
+          isOpen={showCancelConfirm}
+          title="Discard changes?"
+          message="You have unsaved changes. If you close now, they'll be lost."
+          confirmLabel="Discard changes"
+          onConfirm={() => {
+            setShowCancelConfirm(false);
+            onClose();
+          }}
+          onCancel={() => setShowCancelConfirm(false)}
         />
       </div>
     </div>
