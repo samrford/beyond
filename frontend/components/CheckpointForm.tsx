@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useRef, useEffect, useImperativeHandle, forwardRef } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import { Monitor, Trash2, Star } from "lucide-react";
 import { apiDelete } from "@/lib/api";
@@ -35,6 +36,9 @@ export interface CheckpointData {
   photos: string[];
   journal: string;
   heroPhoto?: string;
+  sidePhoto1?: string;
+  sidePhoto2?: string;
+  sidePhoto3?: string;
 }
 
 interface CheckpointFormProps {
@@ -48,16 +52,50 @@ export interface CheckpointFormHandle {
   requestClose: () => void;
 }
 
+type PhotoSlot = "hero" | "1" | "2" | "3";
+
 interface SortablePhotoProps {
   photo: string;
   index: number;
-  isHero: boolean;
+  currentSlot: PhotoSlot | null;
+  onSetSlot: (slot: PhotoSlot | null) => void;
   onRemove: () => void;
-  onSetHero: () => void;
 }
 
-function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePhotoProps) {
+const SLOT_CONFIG: Record<PhotoSlot, { label: string; bg: string; fg: string }> = {
+  hero: { label: "Hero", bg: "bg-gradient-to-b from-primary-400 to-primary-600", fg: "text-white" },
+  "1":  { label: "1",    bg: "bg-gradient-to-b from-yellow-300 to-yellow-500",   fg: "text-yellow-900" },
+  "2":  { label: "2",    bg: "bg-gradient-to-b from-slate-200 to-slate-400",     fg: "text-slate-700" },
+  "3":  { label: "3",    bg: "bg-gradient-to-b from-yellow-600 to-amber-800",    fg: "text-white" },
+};
+
+// Disc dimensions for the portal radial popup
+const DISC_R = 52;   // disc radius (px)
+const ITEM_R = 36;   // radial button orbit radius (px)
+
+// 4 slots arranged as a diamond: top-right, bottom-right, bottom-left, top-left
+const RADIAL_ITEMS: { slot: PhotoSlot; angle: number }[] = [
+  { slot: "hero", angle: 315 },
+  { slot: "1",    angle: 45  },
+  { slot: "2",    angle: 135 },
+  { slot: "3",    angle: 225 },
+];
+
+function SortablePhoto({ photo, index, currentSlot, onSetSlot, onRemove }: SortablePhotoProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: photo });
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [discPos, setDiscPos] = useState({ x: 0, y: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const slotCfg = currentSlot ? SLOT_CONFIG[currentSlot] : null;
+
+  const openPopup = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!triggerRef.current) return;
+    const r = triggerRef.current.getBoundingClientRect();
+    setDiscPos({ x: r.left + r.width / 2, y: r.top + r.height / 2 });
+    setPopupOpen(true);
+  };
 
   return (
     <div
@@ -65,10 +103,10 @@ function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePh
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`relative aspect-video rounded-xl overflow-hidden border-2 shadow-sm group touch-none
         ${isDragging ? "opacity-50 scale-95 z-50" : ""}
-        ${isHero ? "border-primary-400 dark:border-primary-500" : "border-white dark:border-gray-800"}
+        ${currentSlot === "hero" ? "border-primary-400 dark:border-primary-500" : "border-white dark:border-gray-800"}
       `}
     >
-      {/* Drag handle covers the whole tile */}
+      {/* Drag handle */}
       <div {...attributes} {...listeners} className="absolute inset-0 cursor-grab active:cursor-grabbing z-10" />
 
       <AuthImage
@@ -78,20 +116,30 @@ function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePh
         className="object-cover transition-transform group-hover:scale-110"
       />
 
-      {/* Hero badge */}
-      {isHero && (
-        <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-2 py-0.5 bg-primary-500 text-white rounded-full text-[10px] font-black uppercase tracking-wider shadow">
-          <Star size={9} fill="currentColor" /> Hero
+      {/* Slot trigger — coloured badge when assigned, hollow star on hover when not */}
+      {slotCfg ? (
+        <div className="absolute top-2 left-2 z-20">
+          {/* Blurred dark halo so the badge reads on any image */}
+          <div className="absolute -inset-2 rounded-full bg-black/50 blur-md pointer-events-none" />
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={openPopup}
+            className={`relative overflow-hidden flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider shadow-md ring-1 ring-inset ring-white/40 cursor-pointer ${slotCfg.bg} ${slotCfg.fg}`}
+          >
+            <span className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none rounded-full" />
+            <span className="relative flex items-center gap-1">
+              {currentSlot === "hero" ? <><Star size={9} fill="currentColor" /> Hero</> : currentSlot}
+            </span>
+          </button>
         </div>
-      )}
-
-      {/* Set as hero button (non-hero photos only) */}
-      {!isHero && (
+      ) : (
         <button
+          ref={triggerRef}
           type="button"
-          onClick={onSetHero}
+          onClick={openPopup}
           className="absolute top-2 left-2 z-20 p-1.5 bg-black/50 text-white rounded-full hover:bg-primary-500 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-          title="Set as hero photo"
+          title="Assign slot"
         >
           <Star size={12} />
         </button>
@@ -106,6 +154,55 @@ function SortablePhoto({ photo, index, isHero, onRemove, onSetHero }: SortablePh
       >
         <Trash2 size={12} />
       </button>
+
+      {/* Portal radial disc — escapes overflow-hidden so it floats above the grid */}
+      {popupOpen && createPortal(
+        <>
+          <div className="fixed inset-0 z-[200]" onClick={() => setPopupOpen(false)} />
+          <div
+            className="fixed z-[201] pointer-events-none"
+            style={{ left: discPos.x - DISC_R, top: discPos.y - DISC_R, width: DISC_R * 2, height: DISC_R * 2 }}
+          >
+            {/* Dark blurred disc */}
+            <div className="absolute inset-0 rounded-full bg-black/75 backdrop-blur-sm shadow-xl" />
+
+            {/* Current-slot indicator at centre */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className={`relative overflow-hidden w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black ring-1 ring-inset ring-white/40 ${slotCfg ? `${slotCfg.bg} ${slotCfg.fg}` : "bg-white/20 text-white"}`}>
+                <span className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none rounded-full" />
+                <span className="relative">
+                  {currentSlot === "hero" ? <Star size={8} fill="currentColor" /> : (currentSlot ?? <Star size={8} />)}
+                </span>
+              </div>
+            </div>
+
+            {/* Radial slot buttons */}
+            {RADIAL_ITEMS.map(({ slot, angle }) => {
+              const cfg = SLOT_CONFIG[slot];
+              const isActive = currentSlot === slot;
+              const rad = (angle * Math.PI) / 180;
+              const bx = DISC_R + ITEM_R * Math.cos(rad) - 16;  // 16 = half of w-8 (32px)
+              const by = DISC_R + ITEM_R * Math.sin(rad) - 16;
+              return (
+                <button
+                  key={slot}
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); onSetSlot(isActive ? null : slot); setPopupOpen(false); }}
+                  style={{ left: bx, top: by, pointerEvents: "auto" }}
+                  className={`absolute overflow-hidden w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shadow-lg ring-1 ring-inset ring-white/40 transition-transform hover:scale-110 ${cfg.bg} ${cfg.fg} ${isActive ? "ring-2 ring-white scale-110" : ""}`}
+                  title={cfg.label}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none rounded-full" />
+                  <span className="relative">
+                    {slot === "hero" ? <Star size={11} fill="currentColor" /> : slot}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </>,
+        document.body
+      )}
     </div>
   );
 }
@@ -133,6 +230,9 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
     photos: initialData?.photos || [],
     journal: initialData?.journal || "",
     heroPhoto: initialData?.heroPhoto || "",
+    sidePhoto1: initialData?.sidePhoto1 || "",
+    sidePhoto2: initialData?.sidePhoto2 || "",
+    sidePhoto3: initialData?.sidePhoto3 || "",
   });
 
   const [isDirty, setIsDirty] = useState(false);
@@ -169,9 +269,29 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
     }
   };
 
-  const setHeroPhoto = (photo: string) => {
+  const getPhotoSlot = (photo: string): PhotoSlot | null => {
+    if (formData.heroPhoto === photo) return "hero";
+    if (formData.sidePhoto1 === photo) return "1";
+    if (formData.sidePhoto2 === photo) return "2";
+    if (formData.sidePhoto3 === photo) return "3";
+    return null;
+  };
+
+  const setPhotoSlot = (photo: string, slot: PhotoSlot | null) => {
     setIsDirty(true);
-    setFormData(prev => ({ ...prev, heroPhoto: photo }));
+    setFormData(prev => {
+      const updates: Partial<typeof prev> = {
+        heroPhoto: prev.heroPhoto === photo ? "" : prev.heroPhoto,
+        sidePhoto1: prev.sidePhoto1 === photo ? "" : prev.sidePhoto1,
+        sidePhoto2: prev.sidePhoto2 === photo ? "" : prev.sidePhoto2,
+        sidePhoto3: prev.sidePhoto3 === photo ? "" : prev.sidePhoto3,
+      };
+      if (slot === "hero") updates.heroPhoto = photo;
+      if (slot === "1") updates.sidePhoto1 = photo;
+      if (slot === "2") updates.sidePhoto2 = photo;
+      if (slot === "3") updates.sidePhoto3 = photo;
+      return { ...prev, ...updates };
+    });
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,7 +310,6 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
 
   const removePhoto = (index: number) => {
     const photo = formData.photos[index];
-    // Fire-and-forget delete if the photo was uploaded this session.
     if (pendingUploads.current.has(photo)) {
       pendingUploads.current.delete(photo);
       apiDelete(`/v1/upload/${photo}`);
@@ -198,7 +317,11 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
     setIsDirty(true);
     setFormData(prev => ({
       ...prev,
-      photos: prev.photos.filter((_, i) => i !== index)
+      photos: prev.photos.filter((_, i) => i !== index),
+      heroPhoto: prev.heroPhoto === photo ? "" : prev.heroPhoto,
+      sidePhoto1: prev.sidePhoto1 === photo ? "" : prev.sidePhoto1,
+      sidePhoto2: prev.sidePhoto2 === photo ? "" : prev.sidePhoto2,
+      sidePhoto3: prev.sidePhoto3 === photo ? "" : prev.sidePhoto3,
     }));
   };
 
@@ -361,7 +484,7 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
 
         {formData.photos.length > 0 && (
           <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold -mb-1">
-            Drag to reorder · First photo is the hero
+            Drag to reorder · Hover to assign Hero, 1st, 2nd, 3rd slots
           </p>
         )}
 
@@ -373,9 +496,9 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
                   key={photo}
                   photo={photo}
                   index={index}
-                  isHero={formData.heroPhoto ? photo === formData.heroPhoto : index === 0}
+                  currentSlot={getPhotoSlot(photo)}
+                  onSetSlot={(slot) => setPhotoSlot(photo, slot)}
                   onRemove={() => removePhoto(index)}
-                  onSetHero={() => setHeroPhoto(photo)}
                 />
               ))}
             </div>
