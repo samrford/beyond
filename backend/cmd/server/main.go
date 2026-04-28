@@ -375,6 +375,7 @@ func main() {
 	}))
 
 	mux.HandleFunc("/v1/profiles/me", authed(profilesHandler.HandleMe))
+	mux.HandleFunc("/v1/profiles/check-handle", authed(profilesHandler.CheckHandle))
 	mux.HandleFunc("/v1/profiles/", authed(profilesHandler.GetByHandle))
 	mux.HandleFunc("/v1/users/search", authed(profilesHandler.Search))
 

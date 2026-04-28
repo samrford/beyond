@@ -4,14 +4,15 @@ import "time"
 
 // UserProfile is the app-DB profile keyed by Supabase sub.
 type UserProfile struct {
-	UserID      string    `json:"userId"`
-	Handle      string    `json:"handle"`
-	DisplayName string    `json:"displayName"`
-	Bio         string    `json:"bio"`
-	AvatarURL   string    `json:"avatarUrl"`
-	IsPublic    bool      `json:"isPublic"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
+	UserID           string     `json:"userId"`
+	Handle           string     `json:"handle"`
+	DisplayName      string     `json:"displayName"`
+	Bio              string     `json:"bio"`
+	AvatarURL        string     `json:"avatarUrl"`
+	IsPublic         bool       `json:"isPublic"`
+	HandleChangedAt  *time.Time `json:"handleChangedAt"`
+	CreatedAt        time.Time  `json:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt"`
 }
 
 // TripSummary is the small shape returned in profile pages and search.

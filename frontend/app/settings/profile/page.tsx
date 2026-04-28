@@ -2,15 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Globe, Lock, Save } from "lucide-react";
+import { Globe, Lock, Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import PageTransition from "@/components/PageTransition";
 import QueryBoundary from "@/components/QueryBoundary";
 import { useAuth } from "@/components/AuthProvider";
-import { useMyProfile, useUpdateMyProfile } from "@/lib/queries/profiles";
+import {
+  useMyProfile,
+  useUpdateMyProfile,
+  useCheckHandleAvailability,
+} from "@/lib/queries/profiles";
 import { ApiError } from "@/lib/api";
 
 const HANDLE_PATTERN = /^[a-z0-9_]{3,30}$/;
+const HANDLE_COOLDOWN_DAYS = 30;
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
 
 export default function ProfileSettingsPage() {
   const router = useRouter();
@@ -42,9 +56,35 @@ export default function ProfileSettingsPage() {
   }, [data, user, hydrated]);
 
   const isFirstTime = data?.needs_setup === true;
+  const currentHandle = data?.profile?.handle ?? "";
+
+  // Handle lockout: the 30-day cooldown applies from handleChangedAt.
+  const handleChangedAt = data?.profile?.handleChangedAt
+    ? new Date(data.profile.handleChangedAt)
+    : null;
+  const handleLockedUntil = handleChangedAt
+    ? new Date(handleChangedAt.getTime() + HANDLE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000)
+    : null;
+  const isHandleLocked = handleLockedUntil ? handleLockedUntil > new Date() : false;
 
   const handleValid = HANDLE_PATTERN.test(handle);
-  const canSubmit = handleValid && !updateProfile.isPending;
+  const handleChanged = handle !== currentHandle;
+
+  // Only debounce + check availability when the handle differs from what the user already has.
+  const debouncedHandle = useDebounce(handle, 400);
+  const shouldCheck = handleValid && handleChanged && !isHandleLocked;
+  const { data: availabilityData, isFetching: isCheckingHandle } =
+    useCheckHandleAvailability(debouncedHandle, shouldCheck);
+
+  const handleAvailable = !handleChanged || availabilityData?.available === true;
+  const handleTaken = handleChanged && availabilityData?.available === false;
+
+  const canSubmit =
+    handleValid &&
+    handleAvailable &&
+    !isCheckingHandle &&
+    !updateProfile.isPending &&
+    !(isHandleLocked && handleChanged);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +104,8 @@ export default function ProfileSettingsPage() {
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         toast.error("That handle is already taken");
+      } else if (err instanceof ApiError && err.status === 429) {
+        toast.error("You can't change your handle again yet");
       } else if (err instanceof ApiError && err.status === 400) {
         toast.error(err.body || "Invalid input");
       } else {
@@ -105,24 +147,62 @@ export default function ProfileSettingsPage() {
               </label>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500">@</span>
-                <input
-                  id="handle"
-                  type="text"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value.toLowerCase())}
-                  placeholder="alice"
-                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg font-mono text-sm focus:ring-2 focus:ring-primary-500"
-                  required
-                  minLength={3}
-                  maxLength={30}
-                />
+                <div className="relative flex-1">
+                  <input
+                    id="handle"
+                    type="text"
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value.toLowerCase())}
+                    placeholder="alice"
+                    disabled={isHandleLocked}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-900 rounded-lg font-mono text-sm focus:ring-2 focus:ring-primary-500 disabled:opacity-60 disabled:cursor-not-allowed pr-8"
+                    required
+                    minLength={3}
+                    maxLength={30}
+                  />
+                  {handleChanged && handleValid && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2">
+                      {isCheckingHandle ? (
+                        <Loader2 size={16} className="text-gray-400 animate-spin" />
+                      ) : handleTaken ? (
+                        <XCircle size={16} className="text-red-500" />
+                      ) : availabilityData?.available ? (
+                        <CheckCircle size={16} className="text-green-500" />
+                      ) : null}
+                    </span>
+                  )}
+                </div>
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                3–30 characters. Lowercase letters, digits, underscores.
-                {handle && !handleValid && (
-                  <span className="block text-red-600 mt-1">Handle doesn&apos;t match the allowed format.</span>
+
+              <div className="mt-1 text-xs text-gray-500 space-y-1">
+                {isHandleLocked && handleLockedUntil ? (
+                  <p className="text-amber-600 dark:text-amber-400">
+                    Handle locked until{" "}
+                    {handleLockedUntil.toLocaleDateString(undefined, {
+                      day: "numeric",
+                      month: "long",
+                      year: "numeric",
+                    })}
+                    . Handles can only be changed once every {HANDLE_COOLDOWN_DAYS} days.
+                  </p>
+                ) : (
+                  <>
+                    <p>
+                      3–30 characters. Lowercase letters, digits, underscores.
+                      This will be your public profile URL (e.g. beyond.com/u/{handle || "alice"}).
+                    </p>
+                    {handle && !handleValid && (
+                      <p className="text-red-600">Handle doesn&apos;t match the allowed format.</p>
+                    )}
+                    {handleTaken && (
+                      <p className="text-red-600">That handle is already taken.</p>
+                    )}
+                    {handleChanged && availabilityData?.available && (
+                      <p className="text-green-600">Handle is available.</p>
+                    )}
+                  </>
                 )}
-              </p>
+              </div>
             </div>
 
             {/* Display name */}

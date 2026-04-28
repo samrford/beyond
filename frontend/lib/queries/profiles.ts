@@ -8,6 +8,7 @@ export interface Profile {
   bio: string;
   avatarUrl: string;
   isPublic: boolean;
+  handleChangedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,6 +66,7 @@ export const profileKeys = {
   me: ["profile", "me"] as const,
   byHandle: (handle: string) => ["profile", "byHandle", handle.toLowerCase()] as const,
   search: (q: string) => ["users", "search", q.toLowerCase()] as const,
+  checkHandle: (handle: string) => ["handle-check", handle.toLowerCase()] as const,
 };
 
 export function useMyProfile({ enabled = true }: { enabled?: boolean } = {}) {
@@ -106,6 +108,19 @@ export function useProfileByHandle(handle: string) {
       if (err instanceof ApiError && err.status === 404) return false;
       return failureCount < 2;
     },
+  });
+}
+
+export function useCheckHandleAvailability(handle: string, enabled = true) {
+  return useQuery({
+    queryKey: profileKeys.checkHandle(handle),
+    queryFn: () =>
+      apiFetch<{ available: boolean }>(
+        `/v1/profiles/check-handle?handle=${encodeURIComponent(handle)}`
+      ),
+    enabled,
+    staleTime: 15_000,
+    retry: false,
   });
 }
 

@@ -9,11 +9,14 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lib/pq"
 
 	"beyond/backend/internal/data"
 )
+
+const handleCooldownDays = 30
 
 // handleRegex is the validation pattern for user-chosen handles.
 // Lowercase letters, digits, and underscores; 3–30 chars.
@@ -45,10 +48,10 @@ func (h *ProfilesHandler) getMe(w http.ResponseWriter, r *http.Request) {
 
 	var p data.UserProfile
 	row := h.db.QueryRow(
-		"SELECT user_id, handle, display_name, bio, avatar_url, is_public, created_at, updated_at FROM user_profiles WHERE user_id = $1",
+		"SELECT user_id, handle, display_name, bio, avatar_url, is_public, handle_changed_at, created_at, updated_at FROM user_profiles WHERE user_id = $1",
 		userID,
 	)
-	if err := row.Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.AvatarURL, &p.IsPublic, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	if err := row.Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.AvatarURL, &p.IsPublic, &p.HandleChangedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]any{"needs_setup": true})
@@ -88,22 +91,52 @@ func (h *ProfilesHandler) updateMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check cooldown if the user already has a profile and is changing their handle.
+	var currentHandle string
+	var handleChangedAt *time.Time
+	err := h.db.QueryRow(
+		"SELECT handle, handle_changed_at FROM user_profiles WHERE user_id = $1",
+		userID,
+	).Scan(&currentHandle, &handleChangedAt)
+	if err != nil && err != sql.ErrNoRows {
+		log.Printf("Error checking current handle: %v", err)
+		http.Error(w, "Failed to save profile", http.StatusInternalServerError)
+		return
+	}
+
+	if err == nil && currentHandle != body.Handle && handleChangedAt != nil {
+		cooldownEnds := handleChangedAt.AddDate(0, 0, handleCooldownDays)
+		if time.Now().Before(cooldownEnds) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusTooManyRequests)
+			json.NewEncoder(w).Encode(map[string]any{
+				"error":         "handle_cooldown",
+				"next_change_at": cooldownEnds,
+			})
+			return
+		}
+	}
+
 	var p data.UserProfile
 	row := h.db.QueryRow(`
-		INSERT INTO user_profiles (user_id, handle, display_name, bio, avatar_url, is_public)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO user_profiles (user_id, handle, display_name, bio, avatar_url, is_public, handle_changed_at)
+		VALUES ($1, $2, $3, $4, $5, $6, NULL)
 		ON CONFLICT (user_id) DO UPDATE SET
-			handle = EXCLUDED.handle,
+			handle_changed_at = CASE
+				WHEN user_profiles.handle != EXCLUDED.handle THEN NOW()
+				ELSE user_profiles.handle_changed_at
+			END,
+			handle      = EXCLUDED.handle,
 			display_name = EXCLUDED.display_name,
-			bio = EXCLUDED.bio,
-			avatar_url = EXCLUDED.avatar_url,
-			is_public = EXCLUDED.is_public,
-			updated_at = NOW()
-		RETURNING user_id, handle, display_name, bio, avatar_url, is_public, created_at, updated_at
+			bio          = EXCLUDED.bio,
+			avatar_url   = EXCLUDED.avatar_url,
+			is_public    = EXCLUDED.is_public,
+			updated_at   = NOW()
+		RETURNING user_id, handle, display_name, bio, avatar_url, is_public, handle_changed_at, created_at, updated_at
 	`,
 		userID, body.Handle, body.DisplayName, body.Bio, body.AvatarURL, body.IsPublic,
 	)
-	if err := row.Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.AvatarURL, &p.IsPublic, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	if err := row.Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.AvatarURL, &p.IsPublic, &p.HandleChangedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		// Surface unique-handle violation as 409.
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
@@ -122,6 +155,35 @@ func (h *ProfilesHandler) updateMe(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CheckHandle handles GET /v1/profiles/check-handle?handle=xxx.
+// Returns {"available": true/false} without revealing profile details.
+func (h *ProfilesHandler) CheckHandle(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	handle := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("handle")))
+	if !handleRegex.MatchString(handle) {
+		http.Error(w, "Invalid handle format", http.StatusBadRequest)
+		return
+	}
+
+	var exists bool
+	err := h.db.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM user_profiles WHERE LOWER(handle) = $1)",
+		handle,
+	).Scan(&exists)
+	if err != nil {
+		log.Printf("Error checking handle availability: %v", err)
+		http.Error(w, "Check failed", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]any{"available": !exists})
+}
+
 // GetByHandle returns the public-facing view of a profile and its public
 // trips & plans. Owners see all of their own resources regardless of
 // visibility. Private profiles return only {handle, is_private: true} to
@@ -137,10 +199,10 @@ func (h *ProfilesHandler) GetByHandle(w http.ResponseWriter, r *http.Request) {
 
 	var p data.UserProfile
 	row := h.db.QueryRow(
-		"SELECT user_id, handle, display_name, bio, avatar_url, is_public, created_at, updated_at FROM user_profiles WHERE LOWER(handle) = LOWER($1)",
+		"SELECT user_id, handle, display_name, bio, avatar_url, is_public, handle_changed_at, created_at, updated_at FROM user_profiles WHERE LOWER(handle) = LOWER($1)",
 		handle,
 	)
-	if err := row.Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.AvatarURL, &p.IsPublic, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	if err := row.Scan(&p.UserID, &p.Handle, &p.DisplayName, &p.Bio, &p.AvatarURL, &p.IsPublic, &p.HandleChangedAt, &p.CreatedAt, &p.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Profile not found", http.StatusNotFound)
 			return

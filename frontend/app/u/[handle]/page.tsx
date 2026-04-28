@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Lock, Globe, MapPin, Plane, Map as MapIcon } from "lucide-react";
@@ -9,6 +10,8 @@ import AuthImage from "@/components/AuthImage";
 import { useProfileByHandle } from "@/lib/queries/profiles";
 import { getImageUrl } from "@/lib/api";
 
+type Tab = "trips" | "plans";
+
 export default function ProfilePage({
   params,
 }: {
@@ -16,6 +19,7 @@ export default function ProfilePage({
 }) {
   const handle = params.handle;
   const { data, isLoading, isError, error, refetch } = useProfileByHandle(handle);
+  const [activeTab, setActiveTab] = useState<Tab>("trips");
 
   if (isLoading || isError) {
     return (
@@ -60,6 +64,11 @@ export default function ProfilePage({
   const initial = (profile.displayName || profile.handle).charAt(0).toUpperCase();
   const trips = data.trips ?? [];
   const plans = data.plans ?? [];
+
+  const tabs: { id: Tab; label: string; icon: typeof Plane; count: number }[] = [
+    { id: "trips", label: "Trips", icon: Plane, count: trips.length },
+    { id: "plans", label: "Plans", icon: MapIcon, count: plans.length },
+  ];
 
   return (
     <main className="min-h-screen p-8 bg-transparent">
@@ -109,107 +118,131 @@ export default function ProfilePage({
             </div>
           </div>
 
-          {/* Trips */}
-          <section className="mb-12">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-              <Plane size={20} /> Trips
-            </h2>
-            {trips.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 italic">
-                {data.is_owner
-                  ? "You haven't made any trips public yet."
-                  : "No public trips yet."}
-              </p>
-            ) : (
-              <div className="grid gap-6">
-                {trips.map((t) => (
-                  <Link
-                    key={t.id}
-                    href={`/trip/${t.id}`}
-                    className="block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-transparent dark:border-gray-700"
-                  >
-                    <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
-                      <AuthImage
-                        src={getImageUrl(t.headerPhoto, 800)}
-                        alt={t.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <div className="p-6 relative">
-                      <div className="flex items-start justify-between gap-4">
-                        <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
-                          {t.name}
-                        </h3>
+          {/* Tabs */}
+          <div className="flex gap-2 mb-8 border-b-2 border-gray-100 dark:border-gray-800">
+            {tabs.map(({ id, label, icon: Icon, count }) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex items-center gap-2.5 px-6 py-4 text-base font-semibold rounded-t-xl transition-all border-b-2 -mb-0.5 ${
+                  activeTab === id
+                    ? "border-primary-500 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/20"
+                    : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+                }`}
+              >
+                <Icon size={20} strokeWidth={activeTab === id ? 2.5 : 2} />
+                {label}
+                <span
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    activeTab === id
+                      ? "bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === "trips" && (
+            <section>
+              {trips.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 italic">
+                  {data.is_owner
+                    ? "You haven't made any trips public yet."
+                    : "No public trips yet."}
+                </p>
+              ) : (
+                <div className="grid gap-6">
+                  {trips.map((t) => (
+                    <Link
+                      key={t.id}
+                      href={`/trip/${t.id}`}
+                      className="block bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-transparent dark:border-gray-700"
+                    >
+                      <div className="h-48 bg-gray-200 dark:bg-gray-700 relative overflow-hidden">
+                        <AuthImage
+                          src={getImageUrl(t.headerPhoto, 800)}
+                          alt={t.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div className="p-6 relative">
+                        <div className="flex items-start justify-between gap-4">
+                          <h3 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">
+                            {t.name}
+                          </h3>
+                          {data.is_owner && (
+                            <VisibilityBadge isPublic={t.isPublic} />
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                          {new Date(t.startDate).toLocaleDateString()} –{" "}
+                          {new Date(t.endDate).toLocaleDateString()}
+                        </p>
+                        <p className="text-gray-600 dark:text-gray-300 line-clamp-2">
+                          {t.summary}
+                        </p>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {activeTab === "plans" && (
+            <section>
+              {plans.length === 0 ? (
+                <p className="text-gray-500 dark:text-gray-400 italic">
+                  {data.is_owner
+                    ? "You haven't made any plans public yet."
+                    : "No public plans yet."}
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {plans.map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/plans/${p.id}`}
+                      className="block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1"
+                    >
+                      <div className="relative h-40 overflow-hidden bg-gray-100 dark:bg-gray-700">
+                        <AuthImage
+                          src={getImageUrl(p.coverPhoto, 800)}
+                          alt={p.name}
+                          fill
+                          className="object-cover transition-transform duration-500 hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <div className="absolute bottom-3 left-4 right-4">
+                          <h3 className="text-lg font-bold text-white line-clamp-1">{p.name}</h3>
+                          <div className="flex items-center gap-2 text-white/80 text-xs mt-1 font-medium">
+                            <MapPin size={12} />
+                            {new Date(p.startDate).toLocaleDateString()} –{" "}
+                            {new Date(p.endDate).toLocaleDateString()}
+                          </div>
+                        </div>
                         {data.is_owner && (
-                          <VisibilityBadge isPublic={t.isPublic} />
+                          <div className="absolute top-3 right-3">
+                            <VisibilityBadge isPublic={p.isPublic} />
+                          </div>
                         )}
                       </div>
-                      <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                        {new Date(t.startDate).toLocaleDateString()} –{" "}
-                        {new Date(t.endDate).toLocaleDateString()}
-                      </p>
-                      <p className="text-gray-600 dark:text-gray-300 line-clamp-2">
-                        {t.summary}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Plans */}
-          <section>
-            <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center gap-2">
-              <MapIcon size={20} /> Plans
-            </h2>
-            {plans.length === 0 ? (
-              <p className="text-gray-500 dark:text-gray-400 italic">
-                {data.is_owner
-                  ? "You haven't made any plans public yet."
-                  : "No public plans yet."}
-              </p>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {plans.map((p) => (
-                  <Link
-                    key={p.id}
-                    href={`/plans/${p.id}`}
-                    className="block bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden transition-all hover:shadow-xl hover:-translate-y-1"
-                  >
-                    <div className="relative h-40 overflow-hidden bg-gray-100 dark:bg-gray-700">
-                      <AuthImage
-                        src={getImageUrl(p.coverPhoto, 800)}
-                        alt={p.name}
-                        fill
-                        className="object-cover transition-transform duration-500 hover:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      <div className="absolute bottom-3 left-4 right-4">
-                        <h3 className="text-lg font-bold text-white line-clamp-1">{p.name}</h3>
-                        <div className="flex items-center gap-2 text-white/80 text-xs mt-1 font-medium">
-                          <MapPin size={12} />
-                          {new Date(p.startDate).toLocaleDateString()} –{" "}
-                          {new Date(p.endDate).toLocaleDateString()}
-                        </div>
+                      <div className="p-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {p.summary}
+                        </p>
                       </div>
-                      {data.is_owner && (
-                        <div className="absolute top-3 right-3">
-                          <VisibilityBadge isPublic={p.isPublic} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                        {p.summary}
-                      </p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </section>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
         </div>
       </PageTransition>
     </main>
