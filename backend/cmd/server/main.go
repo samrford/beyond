@@ -208,6 +208,7 @@ func main() {
 	plansHandler := handlers.NewPlansHandler(db)
 	planDaysHandler := handlers.NewPlanDaysHandler(db)
 	planItemsHandler := handlers.NewPlanItemsHandler(db)
+	profilesHandler := handlers.NewProfilesHandler(db)
 	var uploader data.FileStore
 	if storage != nil {
 		uploader = storage
@@ -372,6 +373,10 @@ func main() {
 			plansHandler.DeletePlan(w, r)
 		}
 	}))
+
+	mux.HandleFunc("/v1/profiles/me", authed(profilesHandler.HandleMe))
+	mux.HandleFunc("/v1/profiles/", authed(profilesHandler.GetByHandle))
+	mux.HandleFunc("/v1/users/search", authed(profilesHandler.Search))
 
 	mux.HandleFunc("/v1/upload", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {

@@ -17,23 +17,32 @@ import {
   Settings,
   LogOut,
   LayoutDashboard,
+  User,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTheme } from "../app/ThemeClient";
 import { useAuth } from "./AuthProvider";
+import { useMyProfile } from "@/lib/queries/profiles";
+import UserSearch from "./UserSearch";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const { data: myProfile } = useMyProfile({ enabled: !!user });
   const [isOpen, setIsOpen] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  const myProfileHref = myProfile?.profile
+    ? `/u/${myProfile.profile.handle}`
+    : "/settings/profile";
 
   const navItems = [
     { name: "Home", href: "/", icon: Compass },
     { name: "My Plans", href: "/plans", icon: Map },
     { name: "My Trips", href: "/trips", icon: Plane },
+    { name: "My Profile", href: myProfileHref, icon: User },
   ];
 
   if (process.env.NEXT_PUBLIC_DEV_STYLING === "true") {
@@ -134,6 +143,13 @@ const Sidebar = () => {
             <X size={20} />
           </button>
         </div>
+
+        {/* Search */}
+        {user && (
+          <div className="px-4 mt-2">
+            <UserSearch collapsed={!isOpen} />
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-4 space-y-2 mt-4">

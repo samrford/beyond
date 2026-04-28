@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useUpload } from "@/app/hooks/useUpload";
-import { Upload, X, Calendar, MapPin, AlignLeft } from "lucide-react";
+import { Upload, X, Calendar, MapPin, AlignLeft, Globe, Lock } from "lucide-react";
 import { LucideIcon } from "lucide-react";
 import AuthImage from "@/components/AuthImage";
 
@@ -36,6 +36,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     endDate: "",
     summary: "",
     coverPhoto: "",
+    isPublic: false,
   });
 
 
@@ -63,6 +64,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
         endDate: initialData.endDate ? new Date(initialData.endDate).toISOString().split('T')[0] : "",
         summary: initialData.summary || "",
         coverPhoto: initialData.coverPhoto || "",
+        isPublic: initialData.isPublic ?? false,
       });
     }
   }, [initialData, formData.name, formData.coverPhoto]);
@@ -200,6 +202,28 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
           placeholder="Briefly describe what you're planning for this adventure..."
           className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none resize-none"
         />
+      </div>
+
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-start gap-3">
+        <button
+          type="button"
+          onClick={() => { setIsDirty(true); setFormData((prev) => ({ ...prev, isPublic: !prev.isPublic })); }}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${formData.isPublic ? "bg-primary-600" : "bg-gray-300 dark:bg-gray-600"}`}
+          aria-pressed={formData.isPublic}
+        >
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.isPublic ? "translate-x-5" : "translate-x-0.5"}`} />
+        </button>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            {formData.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+            {formData.isPublic ? "Public plan" : "Private plan"}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {formData.isPublic
+              ? "Other users can see this plan on your profile."
+              : "Only you can see this plan."}
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-4 pt-4">

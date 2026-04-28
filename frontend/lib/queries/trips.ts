@@ -23,6 +23,8 @@ export interface Trip {
   bgBlur: number;
   bgOpacity: number;
   bgDarkness: number;
+  isPublic: boolean;
+  isOwner: boolean;
   checkpoints: Checkpoint[] | null;
 }
 

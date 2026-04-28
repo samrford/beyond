@@ -49,6 +49,7 @@ export default function TripBackground({
   isDirty,
   isSaving,
   onSave,
+  readOnly = false,
 }: {
   imageUrl: string | null | undefined;
   value: TripBackgroundValue;
@@ -56,6 +57,7 @@ export default function TripBackground({
   isDirty: boolean;
   isSaving: boolean;
   onSave: () => void;
+  readOnly?: boolean;
 }) {
   const { mode, blur, opacity, darkness } = value;
   const [open, setOpen] = useState(false);
@@ -119,6 +121,7 @@ export default function TripBackground({
         )}
       </div>
 
+      {!readOnly && (
       <div className="fixed bottom-6 right-6 z-40 flex items-end gap-2">
         {open && (
           <div className="w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-lg shadow-xl p-3 border border-gray-200 dark:border-gray-700 space-y-3">
@@ -208,6 +211,7 @@ export default function TripBackground({
           {open ? <X size={18} /> : <Palette size={18} />}
         </button>
       </div>
+      )}
     </>
   );
 }

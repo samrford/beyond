@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import PlanForm from "@/components/PlanForm";
 import { usePlan, useUpdatePlan, Plan } from "@/lib/queries/plans";
@@ -14,6 +15,12 @@ export default function EditPlanPage() {
 
   const { data: plan, isLoading, isError, error, refetch } = usePlan(id);
   const updatePlan = useUpdatePlan(id);
+
+  useEffect(() => {
+    if (plan && !plan.isOwner) {
+      router.replace(`/plans/${id}`);
+    }
+  }, [plan, id, router]);
 
   const handleSubmit = async (data: Partial<Plan>) => {
     try {
