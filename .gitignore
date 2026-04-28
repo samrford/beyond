@@ -50,3 +50,4 @@ out/
 # package-lock.json
 # go.sum
 frontend/seville.json
+CLAUDE.md

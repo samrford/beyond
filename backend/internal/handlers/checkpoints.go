@@ -51,8 +51,8 @@ func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Req
 	photosJSON, _ := json.Marshal(c.Photos)
 
 	_, err := h.db.Exec(
-		"INSERT INTO checkpoints (id, trip_id, name, location, timestamp, description, photos, journal, hero_photo) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		c.ID, tripID, c.Name, c.Location, c.Timestamp, c.Description, photosJSON, c.Journal, c.HeroPhoto,
+		"INSERT INTO checkpoints (id, trip_id, name, location, timestamp, end_timestamp, description, photos, journal, hero_photo, side_photo_1, side_photo_2, side_photo_3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
+		c.ID, tripID, c.Name, c.Location, c.Timestamp, c.EndTimestamp, c.Description, photosJSON, c.Journal, c.HeroPhoto, c.SidePhoto1, c.SidePhoto2, c.SidePhoto3,
 	)
 	if err != nil {
 		log.Printf("Error inserting checkpoint: %v", err)
@@ -88,8 +88,8 @@ func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Req
 	photosJSON, _ := json.Marshal(c.Photos)
 
 	_, err := h.db.Exec(
-		"UPDATE checkpoints SET name = $1, location = $2, timestamp = $3, description = $4, photos = $5, journal = $6, hero_photo = $7 WHERE id = $8",
-		c.Name, c.Location, c.Timestamp, c.Description, photosJSON, c.Journal, c.HeroPhoto, id,
+		"UPDATE checkpoints SET name = $1, location = $2, timestamp = $3, end_timestamp = $4, description = $5, photos = $6, journal = $7, hero_photo = $8, side_photo_1 = $9, side_photo_2 = $10, side_photo_3 = $11 WHERE id = $12",
+		c.Name, c.Location, c.Timestamp, c.EndTimestamp, c.Description, photosJSON, c.Journal, c.HeroPhoto, c.SidePhoto1, c.SidePhoto2, c.SidePhoto3, id,
 	)
 	if err != nil {
 		log.Printf("Error updating checkpoint: %v", err)

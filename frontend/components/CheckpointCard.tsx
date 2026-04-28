@@ -12,6 +12,7 @@ interface Checkpoint {
   name: string;
   location: string;
   timestamp: string;
+  endTimestamp?: string;
   description: string;
   photos: string[];
   journal: string;
@@ -24,9 +25,11 @@ interface CheckpointCardProps {
   tripId: string;
   onDelete: (id: string) => void;
   onEdit: (checkpoint: Checkpoint) => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
-export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit }: CheckpointCardProps) {
+export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit, isFirst, isLast }: CheckpointCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -107,8 +110,15 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
   const heroPhoto = checkpoint.heroPhoto || photos[0];
 
   return (
-    <div className="relative pl-8 border-l-2 border-primary-200 dark:border-primary-800">
-      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-primary-500 dark:bg-primary-400 cursor-pointer hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors" />
+    <div className="relative pl-8">
+      {/* Vertical timeline line — extends into the gap on each side to join adjacent cards */}
+      {!(isFirst && isLast) && (
+        <div
+          className={`absolute left-0 w-0.5 bg-primary-400 dark:bg-primary-500 [filter:drop-shadow(0_1px_3px_rgba(0,0,0,0.7))] ${isFirst ? "top-1/2" : "-top-4"} ${isLast ? "bottom-1/2" : "-bottom-4"}`}
+        />
+      )}
+      {/* Timeline dot — centred on the card */}
+      <div className="absolute -left-[7px] top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-primary-500 dark:bg-primary-400 cursor-pointer hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors [filter:drop-shadow(0_2px_4px_rgba(0,0,0,0.7))]" />
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
         <div className="flex items-start justify-between mb-2">
@@ -133,9 +143,19 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                 <Trash2 size={18} />
               </button>
             </div>
-            <span className="text-sm text-gray-400 dark:text-gray-500">
-              {new Date(checkpoint.timestamp).toLocaleDateString()}
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              {new Date(checkpoint.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </span>
+            {(() => {
+              const fmt = (ts: string) => new Date(ts).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+              const startTime = fmt(checkpoint.timestamp);
+              if (startTime === "00:00") return null;
+              return (
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  {startTime}{checkpoint.endTimestamp ? ` – ${fmt(checkpoint.endTimestamp)}` : ""}
+                </span>
+              );
+            })()}
           </div>
         </div>
 

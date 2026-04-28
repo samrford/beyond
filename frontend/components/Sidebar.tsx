@@ -68,7 +68,7 @@ const Sidebar = () => {
   const sidebarClasses = `
     fixed top-0 left-0 h-screen z-40
     transition-all duration-300 ease-in-out
-    bg-white/80 dark:bg-orange-950/80 backdrop-blur-xl
+    bg-white dark:bg-orange-950
     border-r border-orange-100 dark:border-orange-900/50
     flex flex-col
     ${isOpen ? "w-64" : "w-20"}

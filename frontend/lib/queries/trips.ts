@@ -31,6 +31,7 @@ export interface Checkpoint {
   name: string;
   location: string;
   timestamp: string;
+  endTimestamp?: string;
   description: string;
   photos: string[];
   journal: string;
