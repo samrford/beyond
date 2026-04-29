@@ -17,18 +17,27 @@ import {
   Settings,
   LogOut,
   LayoutDashboard,
+  User,
+  Settings2,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTheme } from "../app/ThemeClient";
 import { useAuth } from "./AuthProvider";
+import { useMyProfile } from "@/lib/queries/profiles";
+import UserSearch from "./UserSearch";
 
 const Sidebar = () => {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const { data: myProfile } = useMyProfile({ enabled: !!user });
   const [isOpen, setIsOpen] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  const myProfileHref = myProfile?.profile
+    ? `/u/${myProfile.profile.handle}`
+    : "/settings/profile";
 
   const navItems = [
     { name: "Home", href: "/", icon: Compass },
@@ -135,6 +144,13 @@ const Sidebar = () => {
           </button>
         </div>
 
+        {/* Search */}
+        {user && (
+          <div className="px-4 mt-2">
+            <UserSearch collapsed={!isOpen} />
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 px-4 space-y-2 mt-4">
           {navItems.map((item) => {
@@ -166,31 +182,48 @@ const Sidebar = () => {
         <div className="p-4 border-t border-orange-100 dark:border-orange-900/50 space-y-2">
           {/* Theme Selector */}
           {showSettings && (
-            <div
-              className={`flex items-center bg-orange-50 dark:bg-orange-900/40 rounded-xl p-1 transition-all duration-300 ${!isOpen ? "flex-col" : "justify-between"
-                }`}
-            >
-              {themeOptions.map((opt) => {
-                const Icon = opt.icon;
-                const isActive = theme === opt.id;
+            <div className="space-y-1.5">
+              <Link
+                href={myProfileHref}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${!isOpen ? "justify-center" : ""}`}
+                title="Your Profile"
+              >
+                <User size={18} />
+                {isOpen && <span className="text-sm">Your Profile</span>}
+              </Link>
+              <Link
+                href="/settings/profile"
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${!isOpen ? "justify-center" : ""}`}
+                title="Edit Profile"
+              >
+                <Settings2 size={18} />
+                {isOpen && <span className="text-sm">Edit Profile</span>}
+              </Link>
+              <div
+                className={`flex items-center bg-orange-50 dark:bg-orange-900/40 rounded-xl p-1 transition-all duration-300 ${!isOpen ? "flex-col" : "justify-between"}`}
+              >
+                {themeOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  const isActive = theme === opt.id;
 
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => setTheme(opt.id)}
-                    className={`
-                      p-2 rounded-lg transition-all duration-200 flex-1 flex justify-center
-                      ${isActive
-                        ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                      }
-                    `}
-                    title={opt.name}
-                  >
-                    <Icon size={18} />
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => setTheme(opt.id)}
+                      className={`
+                        p-2 rounded-lg transition-all duration-200 flex-1 flex justify-center
+                        ${isActive
+                          ? "bg-white dark:bg-gray-700 text-primary-600 dark:text-primary-400 shadow-sm"
+                          : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                        }
+                      `}
+                      title={opt.name}
+                    >
+                      <Icon size={18} />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -219,21 +252,23 @@ const Sidebar = () => {
               className={`flex items-center gap-3 px-3 py-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 ${!isOpen ? "justify-center" : ""
                 }`}
             >
-              {/* Avatar */}
-              {userAvatar ? (
-                <Image
-                  src={userAvatar}
-                  alt={userName}
-                  width={32}
-                  height={32}
-                  className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-2 ring-primary-200 dark:ring-primary-800"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-rose-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-                  {userInitial}
-                </div>
-              )}
+              {/* Avatar — links to profile */}
+              <Link href={myProfileHref} className="flex-shrink-0 group" title="Your profile">
+                {userAvatar ? (
+                  <Image
+                    src={userAvatar}
+                    alt={userName}
+                    width={32}
+                    height={32}
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-primary-200 dark:ring-primary-800 group-hover:ring-primary-400 transition-all"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-rose-500 flex items-center justify-center text-white text-sm font-bold group-hover:scale-105 transition-transform">
+                    {userInitial}
+                  </div>
+                )}
+              </Link>
 
               {isOpen && (
                 <div className="flex-1 min-w-0">

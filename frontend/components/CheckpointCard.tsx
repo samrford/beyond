@@ -27,9 +27,10 @@ interface CheckpointCardProps {
   tripId: string;
   onDelete: (id: string) => void;
   onEdit: (checkpoint: Checkpoint) => void;
+  readOnly?: boolean;
 }
 
-export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit }: CheckpointCardProps) {
+export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit, readOnly = false }: CheckpointCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -123,22 +124,24 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
             <p className="text-sm text-gray-500 dark:text-gray-400">{checkpoint.location}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2 text-gray-400">
-              <button
-                onClick={() => onEdit(checkpoint)}
-                className="hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-full transition-colors"
-                title="Edit Checkpoint"
-              >
-                <Pencil size={18} />
-              </button>
-              <button
-                onClick={() => onDelete(checkpoint.id)}
-                className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors"
-                title="Delete Checkpoint"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="flex items-center gap-2 text-gray-400">
+                <button
+                  onClick={() => onEdit(checkpoint)}
+                  className="hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-full transition-colors"
+                  title="Edit Checkpoint"
+                >
+                  <Pencil size={18} />
+                </button>
+                <button
+                  onClick={() => onDelete(checkpoint.id)}
+                  className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors"
+                  title="Delete Checkpoint"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            )}
             <span className="text-sm text-gray-400 dark:text-gray-500">
               {new Date(checkpoint.timestamp).toLocaleDateString()}
             </span>

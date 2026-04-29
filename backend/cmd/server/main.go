@@ -48,9 +48,11 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 // preserved). Allowed sizes: see data.AllowedThumbnailSizes. Without ?w=,
 // returns the original bytes as stored.
 //
-// Ownership check: the requesting user must be the one who uploaded the file
-// (per the uploads manifest). Returns 404 for missing or unowned files to
-// avoid leaking which filenames exist.
+// Access check: the requesting user must either own the file OR the file
+// must be referenced by some public resource (trip header, checkpoint
+// photo of a public trip, plan cover, or public profile avatar). Returns
+// 404 for missing or inaccessible files to avoid leaking which filenames
+// exist.
 func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Set CORS headers FIRST, before any headers are written
@@ -80,20 +82,38 @@ func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Ownership check — requesterID is populated by the auth middleware.
+		// Access check: owner OR file is referenced by a public resource.
 		if db != nil {
 			requesterID := handlers.GetUserID(r.Context())
-			var ownerID string
-			dbErr := db.QueryRowContext(r.Context(),
-				`SELECT user_id FROM uploads WHERE key = $1`, filename,
-			).Scan(&ownerID)
-			if dbErr == sql.ErrNoRows || (dbErr == nil && ownerID != requesterID) {
-				http.Error(w, "Image not found", http.StatusNotFound)
+			var allowed bool
+			dbErr := db.QueryRowContext(r.Context(), `
+				SELECT EXISTS (
+					SELECT 1 FROM uploads WHERE key = $1 AND user_id = $2
+					UNION ALL
+					SELECT 1 FROM trips WHERE is_public AND header_photo = $1
+					UNION ALL
+					SELECT 1 FROM plans WHERE is_public AND cover_photo = $1
+					UNION ALL
+					SELECT 1 FROM user_profiles WHERE is_public AND avatar_url = $1
+					UNION ALL
+					SELECT 1 FROM checkpoints c
+					JOIN trips t ON c.trip_id = t.id
+					WHERE t.is_public AND (
+						c.hero_photo = $1
+						OR c.side_photo_1 = $1
+						OR c.side_photo_2 = $1
+						OR c.side_photo_3 = $1
+						OR c.photos @> to_jsonb($1::text)
+					)
+				)
+			`, filename, requesterID).Scan(&allowed)
+			if dbErr != nil {
+				log.Printf("Image access check error for %s: %v", filename, dbErr)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
 				return
 			}
-			if dbErr != nil {
-				log.Printf("Image ownership check error for %s: %v", filename, dbErr)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
+			if !allowed {
+				http.Error(w, "Image not found", http.StatusNotFound)
 				return
 			}
 		}
@@ -202,12 +222,29 @@ func main() {
 		return corsMiddleware(handlers.AuthMiddleware(verifier, h))
 	}
 
+	// publicGetAuthed allows anonymous GETs (and OPTIONS preflight) but
+	// requires authentication for any state-changing method. Inner handlers
+	// rely on existing IsPublic / IsOwner checks to filter what anonymous
+	// visitors can see.
+	publicGetAuthed := func(h http.HandlerFunc) http.HandlerFunc {
+		return corsMiddleware(handlers.OptionalAuthMiddleware(verifier, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet && r.Method != http.MethodOptions {
+				if handlers.GetUserID(r.Context()) == "" {
+					http.Error(w, `{"error":"Authentication required"}`, http.StatusUnauthorized)
+					return
+				}
+			}
+			h(w, r)
+		}))
+	}
+
 	// Create handlers
 	tripsHandler := handlers.NewTripsHandler(db)
 	checkpointsHandler := handlers.NewCheckpointsHandler(db)
 	plansHandler := handlers.NewPlansHandler(db)
 	planDaysHandler := handlers.NewPlanDaysHandler(db)
 	planItemsHandler := handlers.NewPlanItemsHandler(db)
+	profilesHandler := handlers.NewProfilesHandler(db)
 	var uploader data.FileStore
 	if storage != nil {
 		uploader = storage
@@ -288,7 +325,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/v1/trips/", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/trips/", publicGetAuthed(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 		if strings.HasSuffix(path, "/checkpoints") {
 			if r.Method == "POST" {
@@ -330,7 +367,7 @@ func main() {
 		}
 	}))
 
-	mux.HandleFunc("/v1/plans/", authed(func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/v1/plans/", publicGetAuthed(func(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
 		if strings.HasPrefix(path, "days/") {
@@ -373,6 +410,11 @@ func main() {
 		}
 	}))
 
+	mux.HandleFunc("/v1/profiles/me", authed(profilesHandler.HandleMe))
+	mux.HandleFunc("/v1/profiles/check-handle", authed(profilesHandler.CheckHandle))
+	mux.HandleFunc("/v1/profiles/", publicGetAuthed(profilesHandler.GetByHandle))
+	mux.HandleFunc("/v1/users/search", authed(profilesHandler.Search))
+
 	mux.HandleFunc("/v1/upload", authed(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "POST" {
 			uploadHandler.HandleUpload(w, r)
@@ -390,8 +432,8 @@ func main() {
 	}))
 
 	realImageHandler := makeImageHandler(storage, db)
-	mux.HandleFunc("/v1/image/", authed(realImageHandler))
-	mux.HandleFunc("/v1/image", authed(realImageHandler))
+	mux.HandleFunc("/v1/image/", corsMiddleware(realImageHandler))
+	mux.HandleFunc("/v1/image", corsMiddleware(realImageHandler))
 
 	// Google Photos routes — only mounted if the integration is configured.
 	if handlersPP != nil {

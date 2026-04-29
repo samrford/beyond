@@ -383,6 +383,8 @@ export default function PlanDetailPage() {
     );
   }
 
+  const isOwner = plan.isOwner;
+
   return (
     <main className="h-screen flex flex-col bg-transparent overflow-hidden">
       <PageTransition>
@@ -408,19 +410,23 @@ export default function PlanDetailPage() {
             </div>
 
             <div className="flex gap-3">
-              <button
-                onClick={() => setIsDeleting(true)}
-                className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                title="Delete Plan"
-              >
-                <Trash2 size={20} />
-              </button>
-              <Link
-                href={`/plans/${id}/edit`}
-                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm"
-              >
-                Edit Plan Info
-              </Link>
+              {isOwner && (
+                <button
+                  onClick={() => setIsDeleting(true)}
+                  className="p-2 text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  title="Delete Plan"
+                >
+                  <Trash2 size={20} />
+                </button>
+              )}
+              {isOwner && (
+                <Link
+                  href={`/plans/${id}/edit`}
+                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm"
+                >
+                  Edit Plan Info
+                </Link>
+              )}
               <button
                 onClick={() => {
                   const exportData = JSON.stringify(plan, null, 2);
@@ -440,12 +446,14 @@ export default function PlanDetailPage() {
                 <Download size={16} />
                 Export JSON
               </button>
-              <button
-                onClick={handleConvert}
-                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium text-sm transition-colors shadow-sm"
-              >
-                Convert to Trip
-              </button>
+              {isOwner && (
+                <button
+                  onClick={handleConvert}
+                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium text-sm transition-colors shadow-sm"
+                >
+                  Convert to Trip
+                </button>
+              )}
             </div>
           </header>
 
@@ -457,12 +465,14 @@ export default function PlanDetailPage() {
                 <div className="p-6">
                   <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 tracking-wide uppercase text-sm flex items-center justify-between">
                     <span>Scratchpad / Ideas</span>
-                    <button
-                      onClick={handleAddIdea}
-                      className="text-primary-600 dark:text-primary-400 hover:text-primary-700 text-sm normal-case font-medium"
-                    >
-                      + Add Idea
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={handleAddIdea}
+                        className="text-primary-600 dark:text-primary-400 hover:text-primary-700 text-sm normal-case font-medium"
+                      >
+                        + Add Idea
+                      </button>
+                    )}
                   </h2>
 
                   <div
@@ -476,11 +486,11 @@ export default function PlanDetailPage() {
                           <div
                             key={item.id}
                             id={`item-${item.id}`}
-                            draggable
+                            draggable={isOwner}
                             onDragStart={(e) => handleDragStart(e, item, "scratchpad", null)}
                             onDragEnd={() => setActiveDragItem(null)}
                             onClick={() => setSelectedItemId(item.id)}
-                            className={`p-3 bg-gray-50 dark:bg-gray-700 rounded border shadow-sm flex items-start gap-3 cursor-grab active:cursor-grabbing hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : 'border-gray-100 dark:border-gray-600'}`}
+                            className={`p-3 bg-gray-50 dark:bg-gray-700 rounded border shadow-sm flex items-start gap-3 ${isOwner ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : 'border-gray-100 dark:border-gray-600'}`}
                           >
                             <MapPin className={`${selectedItemId === item.id ? 'text-primary-500' : 'text-gray-400'} mt-0.5 shrink-0 transition-colors`} size={16} />
                             <div className="flex-1 min-w-0 pr-8">
@@ -494,22 +504,24 @@ export default function PlanDetailPage() {
                               </div>
                               {item.location && <p className="text-xs text-gray-500 mt-1 truncate">{item.location}</p>}
                             </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingItem(item);
-                              }}
-                              className="absolute right-3 top-3 p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-gray-200 dark:hover:bg-gray-800"
-                              title="Edit Item"
-                            >
-                              <Pencil size={14} />
-                            </button>
+                            {isOwner && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingItem(item);
+                                }}
+                                className="absolute right-3 top-3 p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-gray-200 dark:hover:bg-gray-800"
+                                title="Edit Item"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full py-4 text-center pointer-events-none">
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">Drop items here to unassign them, or add new ideas!</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">{isOwner ? "Drop items here to unassign them, or add new ideas!" : "No unassigned items."}</p>
                       </div>
                     )}
                   </div>
@@ -589,11 +601,11 @@ export default function PlanDetailPage() {
                                     <div key={item.id}>
                                       <div
                                         id={`item-${item.id}`}
-                                        draggable
+                                        draggable={isOwner}
                                         onDragStart={(e) => handleDragStart(e, item, "day", day.id)}
                                         onDragEnd={() => setActiveDragItem(null)}
                                         onClick={() => setSelectedItemId(item.id)}
-                                        className={`p-3 rounded border shadow-sm flex items-start gap-3 cursor-grab active:cursor-grabbing hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : !hasTime ? "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800" : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600"}`}
+                                        className={`p-3 rounded border shadow-sm flex items-start gap-3 ${isOwner ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : !hasTime ? "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800" : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600"}`}
                                       >
                                         {hasTime ? (
                                           <Clock className={`${selectedItemId === item.id ? 'text-primary-500' : 'text-primary-400'} mt-0.5 shrink-0 transition-colors`} size={16} />
@@ -623,16 +635,18 @@ export default function PlanDetailPage() {
                                             <p className="text-[10px] text-gray-400 mt-1">Ends at {getEndTime(item)}</p>
                                           )}
                                         </div>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setEditingItem(item);
-                                          }}
-                                          className="absolute right-3 top-3 p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-gray-200 dark:hover:bg-gray-800"
-                                          title="Edit Activity"
-                                        >
-                                          <Pencil size={14} />
-                                        </button>
+                                        {isOwner && (
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingItem(item);
+                                            }}
+                                            className="absolute right-3 top-3 p-1.5 text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 opacity-0 group-hover:opacity-100 transition-all rounded hover:bg-gray-200 dark:hover:bg-gray-800"
+                                            title="Edit Activity"
+                                          >
+                                            <Pencil size={14} />
+                                          </button>
+                                        )}
                                       </div>
 
                                       {gap !== null && (
@@ -659,13 +673,15 @@ export default function PlanDetailPage() {
                  ) : (
                       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
                         <p className="text-gray-500 dark:text-gray-400 mb-4">No days added to this itinerary yet.</p>
-                        <button
-                          onClick={handleGenerateDays}
-                          disabled={isGenerating}
-                          className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 font-medium text-sm transition-colors disabled:opacity-50"
-                        >
-                          {isGenerating ? "Generating..." : "+ Generate Days from Dates"}
-                        </button>
+                        {isOwner && (
+                          <button
+                            onClick={handleGenerateDays}
+                            disabled={isGenerating}
+                            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 font-medium text-sm transition-colors disabled:opacity-50"
+                          >
+                            {isGenerating ? "Generating..." : "+ Generate Days from Dates"}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

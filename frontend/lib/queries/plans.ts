@@ -12,6 +12,8 @@ export interface Plan {
   coverPhoto: string;
   createdAt: string;
   updatedAt: string;
+  isPublic: boolean;
+  isOwner: boolean;
   days: PlanDay[];
   unassigned: PlanItem[];
 }

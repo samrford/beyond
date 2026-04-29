@@ -79,3 +79,39 @@ func GetUserID(ctx context.Context) string {
 	id, _ := ctx.Value(userIDKey).(string)
 	return id
 }
+
+// OptionalAuthMiddleware verifies the Supabase JWT if present and stores the
+// user ID in context, but allows requests with no Authorization header through
+// (with an empty userID). A malformed or expired token is still rejected — the
+// caller intended to authenticate. Use this for endpoints that have a public
+// view for anonymous visitors and an enriched view for owners.
+func OptionalAuthMiddleware(verifier IDTokenVerifier, next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			next(w, r)
+			return
+		}
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, `{"error":"Invalid Authorization header"}`, http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		idToken, err := verifier.Verify(r.Context(), tokenString)
+		if err != nil {
+			log.Printf("JWT verification failed: %v", err)
+			http.Error(w, `{"error":"Invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+
+		sub := idToken.Subject
+		if sub == "" {
+			http.Error(w, `{"error":"Missing user ID in token"}`, http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), userIDKey, sub)
+		next(w, r.WithContext(ctx))
+	}
+}

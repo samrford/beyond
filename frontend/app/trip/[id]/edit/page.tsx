@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
 import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
@@ -13,6 +14,12 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
   const { data: trip, isLoading, isError, error, refetch } = useTrip(params.id);
   const updateTrip = useUpdateTrip(params.id);
 
+  useEffect(() => {
+    if (trip && !trip.isOwner) {
+      router.replace(`/trip/${params.id}`);
+    }
+  }, [trip, params.id, router]);
+
   const initialData = trip
     ? {
         name: trip.name,
@@ -20,6 +27,7 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
         endDate: trip.endDate,
         headerPhoto: trip.headerPhoto,
         summary: trip.summary,
+        isPublic: trip.isPublic,
       }
     : null;
 

@@ -14,6 +14,8 @@ type Plan struct {
 	CoverPhoto  string     `json:"coverPhoto"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	UpdatedAt   time.Time  `json:"updatedAt"`
+	IsPublic    bool       `json:"isPublic"`
+	IsOwner     bool       `json:"isOwner"`
 	Days        []PlanDay  `json:"days"`
 	Unassigned  []PlanItem `json:"unassigned"`
 }

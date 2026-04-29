@@ -26,7 +26,7 @@ func NewPlansHandler(db *sql.DB) *PlansHandler {
 // ListPlans handles GET /v1/plans
 func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	rows, err := h.db.Query("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE user_id = $1 ORDER BY start_date ASC", userID)
+	rows, err := h.db.Query("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public FROM plans WHERE user_id = $1 ORDER BY start_date ASC", userID)
 	if err != nil {
 		log.Printf("Error querying plans: %v", err)
 		http.Error(w, "Failed to load plans", http.StatusInternalServerError)
@@ -37,13 +37,14 @@ func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	var plans []data.Plan
 	for rows.Next() {
 		var p data.Plan
-		if err := rows.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt, &p.IsPublic); err != nil {
 			log.Printf("Error scanning plan: %v", err)
 			continue
 		}
 		// Initialize empty arrays so they don't marshal to null
 		p.Days = []data.PlanDay{}
 		p.Unassigned = []data.PlanItem{}
+		p.IsOwner = true
 		plans = append(plans, p)
 	}
 
@@ -59,10 +60,11 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
-	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at FROM plans WHERE id = $1 AND user_id = $2", id, userID)
+	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public, user_id FROM plans WHERE id = $1", id)
 
 	var p data.Plan
-	if err := row.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt); err != nil {
+	var ownerID string
+	if err := row.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt, &p.IsPublic, &ownerID); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Plan not found"})
@@ -70,6 +72,13 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 		}
 		log.Printf("Error querying plan: %v", err)
 		http.Error(w, "Failed to load plan", http.StatusInternalServerError)
+		return
+	}
+
+	p.IsOwner = ownerID == userID
+	if !p.IsOwner && !p.IsPublic {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Plan not found"})
 		return
 	}
 
@@ -177,8 +186,8 @@ func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 	p.UpdatedAt = now
 
 	_, err := h.db.Exec(
-		"INSERT INTO plans (id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-		p.ID, p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.CreatedAt, p.UpdatedAt, userID,
+		"INSERT INTO plans (id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, user_id, is_public) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
+		p.ID, p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.CreatedAt, p.UpdatedAt, userID, p.IsPublic,
 	)
 	if err != nil {
 		log.Printf("Error inserting plan: %v", err)
@@ -186,6 +195,7 @@ func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p.IsOwner = true
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(p)
 }
@@ -205,8 +215,8 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	p.UpdatedAt = now
 
 	_, err := h.db.Exec(
-		"UPDATE plans SET name = $1, start_date = $2, end_date = $3, summary = $4, cover_photo = $5, updated_at = $6 WHERE id = $7 AND user_id = $8",
-		p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.UpdatedAt, id, userID,
+		"UPDATE plans SET name = $1, start_date = $2, end_date = $3, summary = $4, cover_photo = $5, updated_at = $6, is_public = $7 WHERE id = $8 AND user_id = $9",
+		p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.UpdatedAt, p.IsPublic, id, userID,
 	)
 	if err != nil {
 		log.Printf("Error updating plan: %v", err)
@@ -215,6 +225,7 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.ID = id
+	p.IsOwner = true
 	json.NewEncoder(w).Encode(p)
 }
 
