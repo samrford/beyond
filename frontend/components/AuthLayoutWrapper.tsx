@@ -3,16 +3,29 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "./Sidebar";
+import PublicHeader from "./PublicHeader";
 import { useAuth } from "./AuthProvider";
 import { useMyProfile } from "@/lib/queries/profiles";
 
 const AUTH_ROUTES = ["/login", "/signup", "/reset-password"];
 const SETUP_PATH = "/settings/profile";
 
+// Resource pages that anonymous visitors can view.
+function isPublicResourcePath(pathname: string): boolean {
+  return (
+    /^\/u\/[^/]+\/?$/.test(pathname) ||
+    /^\/trip\/[^/]+\/?$/.test(pathname) ||
+    /^\/plans\/(?!new$|import$)[^/]+\/?$/.test(pathname)
+  );
+}
+
 /**
  * Conditionally renders the sidebar + main content layout.
  * On auth pages, renders children full-screen without sidebar.
- * Also redirects authenticated users without a profile to the setup page.
+ * Anonymous visitors on public resource pages see a top PublicHeader
+ * (sidebar would be useless without an account). Authenticated users
+ * always see the sidebar. Authenticated users without a profile are
+ * redirected to the setup page.
  */
 export default function AuthLayoutWrapper({
   children,
@@ -37,6 +50,20 @@ export default function AuthLayoutWrapper({
 
   if (isAuthPage) {
     return <>{children}</>;
+  }
+
+  // Anonymous visitor on a public resource page → public layout.
+  if (!user && !authLoading && isPublicResourcePath(pathname)) {
+    return (
+      <div className="min-h-screen relative bg-gray-50 dark:bg-gray-950 transition-colors duration-500">
+        <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary-500/10 rounded-full blur-[120px] pointer-events-none z-0" />
+        <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-rose-500/10 rounded-full blur-[120px] pointer-events-none z-0" />
+        <div className="relative z-10">
+          <PublicHeader />
+          {children}
+        </div>
+      </div>
+    );
   }
 
   return (
