@@ -432,8 +432,11 @@ func main() {
 	}))
 
 	realImageHandler := makeImageHandler(storage, db)
-	mux.HandleFunc("/v1/image/", corsMiddleware(realImageHandler))
-	mux.HandleFunc("/v1/image", corsMiddleware(realImageHandler))
+	// Optional auth: signed-in users get owner access to their own images;
+	// anonymous visitors can still fetch images referenced by public resources.
+	imageMiddleware := corsMiddleware(handlers.OptionalAuthMiddleware(verifier, realImageHandler))
+	mux.HandleFunc("/v1/image/", imageMiddleware)
+	mux.HandleFunc("/v1/image", imageMiddleware)
 
 	// Google Photos routes — only mounted if the integration is configured.
 	if handlersPP != nil {
