@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -24,11 +23,11 @@ func TestListPlans(t *testing.T) {
 	h := NewPlansHandler(db)
 
 	now := time.Now()
-	rows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public"}).
-		AddRow("1", "Plan 1", now, now.AddDate(0, 0, 7), "Summary 1", "photo.jpg", now, now, false).
-		AddRow("2", "Plan 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "Summary 2", "photo2.jpg", now, now, true)
+	rows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public", "role"}).
+		AddRow("1", "Plan 1", now, now.AddDate(0, 0, 7), "Summary 1", "photo.jpg", now, now, false, "owner").
+		AddRow("2", "Plan 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "Summary 2", "photo2.jpg", now, now, true, "owner")
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public FROM plans WHERE user_id = \\$1 ORDER BY start_date ASC").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public, role").
 		WithArgs(testUserID).
 		WillReturnRows(rows)
 
@@ -45,6 +44,8 @@ func TestListPlans(t *testing.T) {
 
 	assert.Equal(t, "1", plans[0].ID)
 	assert.Equal(t, "Plan 1", plans[0].Name)
+	assert.Equal(t, "owner", plans[0].Role)
+	assert.True(t, plans[0].IsOwner)
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -57,10 +58,15 @@ func TestGetPlan(t *testing.T) {
 	h := NewPlansHandler(db)
 
 	now := time.Now()
-	planRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public", "user_id"}).
-		AddRow("1", "Plan 1", now, now.AddDate(0, 0, 7), "Summary 1", "photo.jpg", now, now, false, testUserID)
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public, user_id FROM plans WHERE id = \\$1").
+	mock.ExpectQuery("SELECT p.user_id, p.is_public, c.role FROM plans p").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+
+	planRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public"}).
+		AddRow("1", "Plan 1", now, now.AddDate(0, 0, 7), "Summary 1", "photo.jpg", now, now, false)
+
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public FROM plans WHERE id = \\$1").
 		WithArgs("1").
 		WillReturnRows(planRows)
 
@@ -89,6 +95,8 @@ func TestGetPlan(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "1", plan.ID)
+	assert.True(t, plan.IsOwner)
+	assert.Equal(t, "owner", plan.Role)
 	assert.Len(t, plan.Days, 1)
 	assert.Equal(t, "d1", plan.Days[0].ID)
 	assert.Len(t, plan.Days[0].Items, 1)
@@ -128,6 +136,7 @@ func TestCreatePlan(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, returnedPlan.ID)
 	assert.Equal(t, "New Plan", returnedPlan.Name)
+	assert.Equal(t, "owner", returnedPlan.Role)
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -148,8 +157,12 @@ func TestUpdatePlan(t *testing.T) {
 	}
 	body, _ := json.Marshal(updatedPlan)
 
-	mock.ExpectExec("UPDATE plans SET name = \\$1, start_date = \\$2, end_date = \\$3, summary = \\$4, cover_photo = \\$5, updated_at = \\$6, is_public = \\$7 WHERE id = \\$8 AND user_id = \\$9").
-		WithArgs(updatedPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedPlan.Summary, updatedPlan.CoverPhoto, sqlmock.AnyArg(), sqlmock.AnyArg(), "1", testUserID).
+	mock.ExpectQuery("SELECT p.user_id, p.is_public, c.role FROM plans p").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+
+	mock.ExpectExec("UPDATE plans SET name = \\$1, start_date = \\$2, end_date = \\$3, summary = \\$4, cover_photo = \\$5, updated_at = \\$6, is_public = \\$7 WHERE id = \\$8").
+		WithArgs(updatedPlan.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedPlan.Summary, updatedPlan.CoverPhoto, sqlmock.AnyArg(), sqlmock.AnyArg(), "1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/plans/1", bytes.NewBuffer(body)))
@@ -163,6 +176,7 @@ func TestUpdatePlan(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "1", returnedPlan.ID)
 	assert.Equal(t, "Updated Plan", returnedPlan.Name)
+	assert.Equal(t, "owner", returnedPlan.Role)
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -206,9 +220,9 @@ func TestGetPlan_NotFound(t *testing.T) {
 
 	h := NewPlansHandler(db)
 
-	mock.ExpectQuery("SELECT .* FROM plans WHERE id = \\$1").
-		WithArgs("1").
-		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("SELECT p.user_id, p.is_public, c.role FROM plans p").
+		WithArgs("1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "is_public", "role"}))
 
 	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
 	rr := httptest.NewRecorder()
@@ -224,7 +238,7 @@ func TestListPlans_DBError(t *testing.T) {
 
 	h := NewPlansHandler(db)
 
-	mock.ExpectQuery("SELECT .* FROM plans").WillReturnError(errors.New("db error"))
+	mock.ExpectQuery("SELECT .* FROM").WillReturnError(errors.New("db error"))
 
 	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans", nil))
 	rr := httptest.NewRecorder()
@@ -241,7 +255,10 @@ func TestGetPlan_DaysError(t *testing.T) {
 	h := NewPlansHandler(db)
 
 	now := time.Now()
-	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public", "user_id"}).AddRow("1", "P1", now, now, "S1", "C1", now, now, false, testUserID))
+	mock.ExpectQuery("SELECT p.user_id, p.is_public, c.role FROM plans p").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+	mock.ExpectQuery("SELECT .* FROM plans WHERE id = \\$1").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public"}).AddRow("1", "P1", now, now, "S1", "C1", now, now, false))
 	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnError(errors.New("db error"))
 
 	req := reqWithAuth(httptest.NewRequest("GET", "/v1/plans/1", nil))
@@ -259,7 +276,10 @@ func TestGetPlan_ItemsError(t *testing.T) {
 	h := NewPlansHandler(db)
 
 	now := time.Now()
-	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public", "user_id"}).AddRow("1", "P1", now, now, "S1", "C1", now, now, false, testUserID))
+	mock.ExpectQuery("SELECT p.user_id, p.is_public, c.role FROM plans p").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+	mock.ExpectQuery("SELECT .* FROM plans WHERE id = \\$1").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public"}).AddRow("1", "P1", now, now, "S1", "C1", now, now, false))
 	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnRows(sqlmock.NewRows([]string{"id", "date", "notes"}))
 	mock.ExpectQuery("SELECT .* FROM plan_items").WillReturnError(errors.New("db error"))
 
@@ -278,9 +298,12 @@ func TestGetPlan_UnassignedAndFallback(t *testing.T) {
 	h := NewPlansHandler(db)
 
 	now := time.Now()
-	mock.ExpectQuery("SELECT .* FROM plans").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public", "user_id"}).AddRow("1", "P1", now, now, "S1", "C1", now, now, false, testUserID))
+	mock.ExpectQuery("SELECT p.user_id, p.is_public, c.role FROM plans p").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+	mock.ExpectQuery("SELECT .* FROM plans WHERE id = \\$1").WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "summary", "cover_photo", "created_at", "updated_at", "is_public"}).AddRow("1", "P1", now, now, "S1", "C1", now, now, false))
 	mock.ExpectQuery("SELECT .* FROM plan_days").WillReturnRows(sqlmock.NewRows([]string{"id", "date", "notes"}).AddRow("d1", now, "N1"))
-	
+
 	// i1 is unassigned (PlanDayID is null)
 	// i2 has invalid day ID (PlanDayID is "d2" but only "d1" exists)
 	itemRows := sqlmock.NewRows([]string{"id", "plan_day_id", "name", "description", "location", "latitude", "longitude", "order_index", "estimated_time", "start_time", "duration"}).

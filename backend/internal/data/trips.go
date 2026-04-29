@@ -18,6 +18,7 @@ type Trip struct {
 	BgDarkness  int          `json:"bgDarkness"`
 	IsPublic    bool         `json:"isPublic"`
 	IsOwner     bool         `json:"isOwner"`
+	Role        string       `json:"role"`
 	Checkpoints []Checkpoint `json:"checkpoints"`
 }
 

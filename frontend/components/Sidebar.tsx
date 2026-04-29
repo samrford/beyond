@@ -19,11 +19,13 @@ import {
   LayoutDashboard,
   User,
   Settings2,
+  Mail,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTheme } from "../app/ThemeClient";
 import { useAuth } from "./AuthProvider";
 import { useMyProfile } from "@/lib/queries/profiles";
+import { useIncomingInvites } from "@/lib/queries/collaboration";
 import UserSearch from "./UserSearch";
 
 const Sidebar = () => {
@@ -31,6 +33,8 @@ const Sidebar = () => {
   const { theme, setTheme } = useTheme();
   const { user, signOut } = useAuth();
   const { data: myProfile } = useMyProfile({ enabled: !!user });
+  const { data: incomingInvites } = useIncomingInvites({ enabled: !!user });
+  const inviteCount = incomingInvites?.length ?? 0;
   const [isOpen, setIsOpen] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -39,10 +43,11 @@ const Sidebar = () => {
     ? `/u/${myProfile.profile.handle}`
     : "/settings/profile";
 
-  const navItems = [
+  const navItems: { name: string; href: string; icon: typeof Compass; badge?: number }[] = [
     { name: "Home", href: "/", icon: Compass },
     { name: "My Plans", href: "/plans", icon: Map },
     { name: "My Trips", href: "/trips", icon: Plane },
+    { name: "Invitations", href: "/invitations", icon: Mail, badge: inviteCount },
   ];
 
   if (process.env.NEXT_PUBLIC_DEV_STYLING === "true") {
@@ -162,7 +167,7 @@ const Sidebar = () => {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
+                  flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 relative
                   ${isActive
                     ? "bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 font-medium shadow-sm"
                     : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -172,7 +177,16 @@ const Sidebar = () => {
                 title={item.name}
               >
                 <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                {isOpen && <span className="text-sm">{item.name}</span>}
+                {isOpen && <span className="text-sm flex-1">{item.name}</span>}
+                {item.badge && item.badge > 0 ? (
+                  isOpen ? (
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500 text-white">
+                      {item.badge}
+                    </span>
+                  ) : (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
+                  )
+                ) : null}
               </Link>
             );
           })}

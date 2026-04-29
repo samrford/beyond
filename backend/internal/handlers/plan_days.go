@@ -22,7 +22,7 @@ func NewPlanDaysHandler(db *sql.DB) *PlanDaysHandler {
 	}
 }
 
-// CreatePlanDay handles POST /v1/plans/:plan_id/days
+// CreatePlanDay handles POST /v1/plans/:plan_id/days (owner or contributor)
 func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
@@ -37,11 +37,14 @@ func (h *PlanDaysHandler) CreatePlanDay(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Verify plan belongs to user
 	userID := GetUserID(r.Context())
-	var exists bool
-	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1 AND user_id = $2)", planID, userID).Scan(&exists)
-	if err != nil || !exists {
+	acc, err := data.GetPlanAccess(h.db, userID, planID)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Plan not found", http.StatusNotFound)
 		return
 	}
@@ -69,22 +72,33 @@ func (h *PlanDaysHandler) UpdatePlanDay(w http.ResponseWriter, r *http.Request) 
 	http.Error(w, "Not implemented", http.StatusNotImplemented)
 }
 
-// DeletePlanDay handles DELETE /v1/plans/days/:id
+// DeletePlanDay handles DELETE /v1/plans/days/:id (owner or contributor of parent plan)
 func (h *PlanDaysHandler) DeletePlanDay(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/days/")
 
-	// Verify plan day belongs to a plan owned by this user
-	var exists bool
-	if err := h.db.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM plan_days d JOIN plans p ON d.plan_id = p.id WHERE d.id = $1 AND p.user_id = $2)",
-		id, userID,
-	).Scan(&exists); err != nil || !exists {
+	var planID string
+	if err := h.db.QueryRow("SELECT plan_id FROM plan_days WHERE id = $1", id).Scan(&planID); err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Plan day not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error looking up plan day: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	acc, err := data.GetPlanAccess(h.db, userID, planID)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Plan day not found", http.StatusNotFound)
 		return
 	}
 
-	_, err := h.db.Exec("DELETE FROM plan_days WHERE id = $1", id)
+	_, err = h.db.Exec("DELETE FROM plan_days WHERE id = $1", id)
 	if err != nil {
 		log.Printf("Error deleting plan day: %v", err)
 		http.Error(w, "Failed to delete plan day", http.StatusInternalServerError)

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Compass, Mail, Lock, Eye, EyeOff, Loader2, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
@@ -15,7 +16,12 @@ export default function SignupPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<Provider | null>(null);
   const [isConfirmationSent, setIsConfirmationSent] = useState(false);
+  const searchParams = useSearchParams();
+  const next = searchParams?.get("next") ?? "/";
   const supabase = createClient();
+
+  const callbackUrl = (origin: string) =>
+    `${origin}/auth/callback?next=${encodeURIComponent(next)}`;
 
   const handleEmailSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +31,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: callbackUrl(window.location.origin),
       },
     });
 
@@ -45,7 +51,7 @@ export default function SignupPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl(window.location.origin),
       },
     });
 
@@ -249,7 +255,7 @@ export default function SignupPage() {
         <p className="text-center mt-6 text-gray-500 dark:text-gray-400">
           Already have an account?{" "}
           <Link
-            href="/login"
+            href={next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`}
             className="text-primary-600 dark:text-primary-400 font-medium hover:underline"
           >
             Sign in
