@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Compass, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -16,6 +16,8 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<Provider | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams?.get("next") ?? "/";
   const supabase = createClient();
 
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -33,7 +35,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/");
+    router.push(next);
     router.refresh();
   };
 
@@ -43,7 +45,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
       },
     });
 
@@ -223,7 +225,7 @@ export default function LoginPage() {
         <p className="text-center mt-6 text-gray-500 dark:text-gray-400">
           Don&apos;t have an account?{" "}
           <Link
-            href="/signup"
+            href={next === "/" ? "/signup" : `/signup?next=${encodeURIComponent(next)}`}
             className="text-primary-600 dark:text-primary-400 font-medium hover:underline"
           >
             Sign up

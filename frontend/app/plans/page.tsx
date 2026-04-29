@@ -206,17 +206,29 @@ export default function PlansPage() {
                       </div>
                     </div>
                   </Link>
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDeletingId(plan.id);
-                    }}
-                    className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/90 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:scale-110 active:scale-95"
-                    title="Delete Plan"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  {plan.role === "owner" ? (
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setDeletingId(plan.id);
+                      }}
+                      className="absolute top-4 right-4 p-2 bg-white/90 dark:bg-gray-800/90 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 hover:scale-110 active:scale-95"
+                      title="Delete Plan"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  ) : (
+                    <span
+                      className={`absolute top-4 right-4 inline-flex items-center px-2 py-1 text-xs font-medium rounded-full shadow-lg z-10 ${
+                        plan.role === "contributor"
+                          ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      }`}
+                    >
+                      {plan.role === "contributor" ? "Contributor" : "Viewer"}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>

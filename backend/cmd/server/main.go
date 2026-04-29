@@ -83,7 +83,9 @@ func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 			return
 		}
 
-		// Access check: owner OR file is referenced by a public resource.
+		// Access check: owner OR file is referenced by a public resource OR
+		// the requester is a collaborator on the private resource that owns
+		// the file.
 		if db != nil {
 			requesterID := handlers.GetUserID(r.Context())
 			var allowed bool
@@ -106,6 +108,24 @@ func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 						OR c.side_photo_3 = $1
 						OR c.photos @> to_jsonb($1::text)
 					)
+					UNION ALL
+					SELECT 1 FROM trip_collaborators tc
+					JOIN trips tt ON tc.trip_id = tt.id
+					WHERE tc.user_id = $2 AND tt.header_photo = $1
+					UNION ALL
+					SELECT 1 FROM trip_collaborators tc
+					JOIN checkpoints c ON c.trip_id = tc.trip_id
+					WHERE tc.user_id = $2 AND (
+						c.hero_photo = $1
+						OR c.side_photo_1 = $1
+						OR c.side_photo_2 = $1
+						OR c.side_photo_3 = $1
+						OR c.photos @> to_jsonb($1::text)
+					)
+					UNION ALL
+					SELECT 1 FROM plan_collaborators pc
+					JOIN plans pp ON pc.plan_id = pp.id
+					WHERE pc.user_id = $2 AND pp.cover_photo = $1
 				)
 			`, filename, requesterID).Scan(&allowed)
 			if dbErr != nil {
@@ -247,6 +267,8 @@ func main() {
 	planDaysHandler := handlers.NewPlanDaysHandler(db)
 	planItemsHandler := handlers.NewPlanItemsHandler(db)
 	profilesHandler := handlers.NewProfilesHandler(db)
+	collaboratorsHandler := handlers.NewCollaboratorsHandler(db)
+	invitesHandler := handlers.NewInvitesHandler(db)
 	var uploader data.FileStore
 	if storage != nil {
 		uploader = storage
@@ -336,6 +358,17 @@ func main() {
 			return
 		}
 
+		// /v1/trips/{id}/collaborators[/...]
+		if strings.Contains(path, "/collaborators") {
+			collaboratorsHandler.HandleTripCollaborators(w, r)
+			return
+		}
+		// /v1/trips/{id}/invites[/...]
+		if strings.Contains(path, "/invites") {
+			invitesHandler.HandleTripInvites(w, r)
+			return
+		}
+
 		if r.Method == "GET" {
 			tripsHandler.GetTrip(w, r)
 		} else if r.Method == "PUT" {
@@ -403,6 +436,17 @@ func main() {
 			return
 		}
 
+		// /v1/plans/{id}/collaborators[/...]
+		if strings.Contains(path, "/collaborators") {
+			collaboratorsHandler.HandlePlanCollaborators(w, r)
+			return
+		}
+		// /v1/plans/{id}/invites[/...]
+		if strings.Contains(path, "/invites") {
+			invitesHandler.HandlePlanInvites(w, r)
+			return
+		}
+
 		if r.Method == "GET" {
 			plansHandler.GetPlan(w, r)
 		} else if r.Method == "PUT" {
@@ -411,6 +455,11 @@ func main() {
 			plansHandler.DeletePlan(w, r)
 		}
 	}))
+
+	// Invite preview is OptionalAuth (anonymous visitors can preview a link
+	// before signing up); accept/decline still require auth (enforced inside).
+	mux.HandleFunc("/v1/invites/incoming", authed(invitesHandler.ListIncoming))
+	mux.HandleFunc("/v1/invites/", corsMiddleware(handlers.OptionalAuthMiddleware(verifier, invitesHandler.HandleByToken)))
 
 	mux.HandleFunc("/v1/profiles/me", authed(profilesHandler.HandleMe))
 	mux.HandleFunc("/v1/profiles/check-handle", authed(profilesHandler.CheckHandle))

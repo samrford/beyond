@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -16,6 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// accessRows builds the row shape returned by data.GetTripAccess /
+// data.GetPlanAccess: (owner_id, is_public, collaborator_role).
+func accessRows(ownerID string, isPublic bool, role any) *sqlmock.Rows {
+	return sqlmock.NewRows([]string{"user_id", "is_public", "role"}).AddRow(ownerID, isPublic, role)
+}
+
 func TestListTrips(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	assert.NoError(t, err)
@@ -24,11 +29,11 @@ func TestListTrips(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	rows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "is_public"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", false).
-		AddRow("2", "Trip 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "photo2.jpg", "Summary 2", true)
+	rows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "is_public", "role"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", false, "owner").
+		AddRow("2", "Trip 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "photo2.jpg", "Summary 2", true, "owner")
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, is_public FROM trips WHERE user_id = \\$1 ORDER BY start_date ASC").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, is_public, role").
 		WithArgs(testUserID).
 		WillReturnRows(rows)
 
@@ -47,6 +52,8 @@ func TestListTrips(t *testing.T) {
 	assert.Equal(t, "Trip 1", trips[0].Name)
 	assert.Equal(t, "photo.jpg", trips[0].HeaderPhoto)
 	assert.Equal(t, "Summary 1", trips[0].Summary)
+	assert.Equal(t, "owner", trips[0].Role)
+	assert.True(t, trips[0].IsOwner)
 	assert.Equal(t, now.Format(time.RFC3339Nano), trips[0].StartDate.Format(time.RFC3339Nano))
 
 	assert.Equal(t, "2", trips[1].ID)
@@ -63,10 +70,16 @@ func TestGetTrip(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID)
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness, is_public, user_id FROM trips WHERE id = \\$1").
+	// Access check returns owner
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+
+	// Then the trip detail SELECT (no user_id column)
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false)
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness, is_public FROM trips WHERE id = \\$1").
 		WithArgs("1").
 		WillReturnRows(tripRows)
 
@@ -90,11 +103,13 @@ func TestGetTrip(t *testing.T) {
 
 	assert.Equal(t, "1", trip.ID)
 	assert.Equal(t, "Trip 1", trip.Name)
+	assert.True(t, trip.IsOwner)
+	assert.Equal(t, "owner", trip.Role)
 	assert.Len(t, trip.Checkpoints, 2)
 	assert.Equal(t, "c1", trip.Checkpoints[0].ID)
 	assert.Equal(t, "Checkpoint 1", trip.Checkpoints[0].Name)
 	assert.Equal(t, []string{"img1.jpg"}, trip.Checkpoints[0].Photos)
-	
+
 	assert.Equal(t, "c2", trip.Checkpoints[1].ID)
 	assert.Equal(t, "Checkpoint 2", trip.Checkpoints[1].Name)
 	assert.Equal(t, []string{}, trip.Checkpoints[1].Photos)
@@ -131,10 +146,11 @@ func TestCreateTrip(t *testing.T) {
 	var returnedTrip data.Trip
 	err = json.NewDecoder(rr.Body).Decode(&returnedTrip)
 	assert.NoError(t, err)
-	
+
 	assert.NotEmpty(t, returnedTrip.ID)
 	assert.Equal(t, "New Trip", returnedTrip.Name)
 	assert.Equal(t, "newphoto.jpg", returnedTrip.HeaderPhoto)
+	assert.Equal(t, "owner", returnedTrip.Role)
 
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
@@ -155,8 +171,12 @@ func TestUpdateTrip(t *testing.T) {
 	}
 	body, _ := json.Marshal(updatedTrip)
 
-	mock.ExpectExec("UPDATE trips SET name = \\$1, start_date = \\$2, end_date = \\$3, header_photo = \\$4, summary = \\$5, bg_mode = \\$6, bg_blur = \\$7, bg_opacity = \\$8, bg_darkness = \\$9, is_public = \\$10 WHERE id = \\$11 AND user_id = \\$12").
-		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, updatedTrip.BgMode, updatedTrip.BgBlur, updatedTrip.BgOpacity, updatedTrip.BgDarkness, sqlmock.AnyArg(), "1", testUserID).
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+
+	mock.ExpectExec("UPDATE trips SET name = \\$1, start_date = \\$2, end_date = \\$3, header_photo = \\$4, summary = \\$5, bg_mode = \\$6, bg_blur = \\$7, bg_opacity = \\$8, bg_darkness = \\$9, is_public = \\$10 WHERE id = \\$11").
+		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, updatedTrip.BgMode, updatedTrip.BgBlur, updatedTrip.BgOpacity, updatedTrip.BgDarkness, sqlmock.AnyArg(), "1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/trips/1", bytes.NewBuffer(body)))
@@ -172,7 +192,61 @@ func TestUpdateTrip(t *testing.T) {
 	assert.Equal(t, "1", returnedTrip.ID)
 	assert.Equal(t, "Updated Trip", returnedTrip.Name)
 	assert.Equal(t, "updatedphoto.jpg", returnedTrip.HeaderPhoto)
+	assert.Equal(t, "owner", returnedTrip.Role)
 
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateTrip_ContributorPreservesIsPublic(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	// Contributor tries to make the trip public; the existing row is private.
+	body, _ := json.Marshal(data.Trip{Name: "X", IsPublic: true})
+
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows("other-owner", false, "contributor"))
+
+	// Updated row stores is_public = false (preserved from acc.IsPublic).
+	mock.ExpectExec("UPDATE trips SET").
+		WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg(), false, "1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/trips/1", bytes.NewBuffer(body)))
+	rr := httptest.NewRecorder()
+	h.UpdateTrip(rr, req)
+
+	assert.Equal(t, http.StatusOK, rr.Code)
+
+	var returned data.Trip
+	json.NewDecoder(rr.Body).Decode(&returned)
+	assert.False(t, returned.IsPublic)
+	assert.Equal(t, "contributor", returned.Role)
+	assert.False(t, returned.IsOwner)
+
+	assert.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateTrip_ViewerForbidden(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows("other-owner", false, "viewer"))
+
+	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/trips/1", bytes.NewBuffer([]byte(`{"name":"x"}`))))
+	rr := httptest.NewRecorder()
+	h.UpdateTrip(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
 	assert.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -204,9 +278,27 @@ func TestGetTrip_NotFound(t *testing.T) {
 
 	h := NewTripsHandler(db)
 
-	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1").
-		WithArgs("1").
-		WillReturnError(sql.ErrNoRows)
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "is_public", "role"}))
+
+	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips/1", nil))
+	rr := httptest.NewRecorder()
+	h.GetTrip(rr, req)
+
+	assert.Equal(t, http.StatusNotFound, rr.Code)
+}
+
+func TestGetTrip_PrivateNonOwnerNotFound(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	assert.NoError(t, err)
+	defer db.Close()
+
+	h := NewTripsHandler(db)
+
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows("other-owner", false, nil))
 
 	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips/1", nil))
 	rr := httptest.NewRecorder()
@@ -223,8 +315,12 @@ func TestGetTrip_CheckpointsError(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID)
+	mock.ExpectQuery("SELECT t.user_id, t.is_public, c.role FROM trips t").
+		WithArgs("1", testUserID).
+		WillReturnRows(accessRows(testUserID, false, nil))
+
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false)
 
 	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1").
 		WithArgs("1").
@@ -278,7 +374,7 @@ func TestListTrips_DBError(t *testing.T) {
 
 	h := NewTripsHandler(db)
 
-	mock.ExpectQuery("SELECT .* FROM trips").WillReturnError(errors.New("db error"))
+	mock.ExpectQuery("SELECT .* FROM").WillReturnError(errors.New("db error"))
 
 	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips", nil))
 	rr := httptest.NewRecorder()
