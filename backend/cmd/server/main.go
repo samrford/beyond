@@ -55,11 +55,12 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 // exist.
 func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers FIRST, before any headers are written
+		// Set CORS headers FIRST, before any headers are written.
+		// Cache-Control is set later, only on successful responses, so
+		// errors (404, 401, etc.) aren't cached for a year.
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		w.Header().Set("Cache-Control", "public, max-age=31536000") // Cache images for a year
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -147,6 +148,7 @@ func makeImageHandler(store data.FileStore, db *sql.DB) http.HandlerFunc {
 		} else {
 			w.Header().Set("Content-Type", "image/jpeg")
 		}
+		w.Header().Set("Cache-Control", "public, max-age=31536000")
 
 		io.Copy(w, body)
 	}
