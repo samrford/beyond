@@ -121,7 +121,7 @@ export default function DateTimePicker({
               root: "p-3 w-[280px]",
               months: "",
               month: "space-y-2",
-              month_caption: "flex justify-center items-center relative h-8 mb-1",
+              month_caption: "flex justify-center items-center h-8 mb-1",
               caption_label: "text-sm font-semibold text-gray-900 dark:text-white",
               nav: "absolute inset-x-0 flex justify-between px-1 pointer-events-none",
               button_previous:
