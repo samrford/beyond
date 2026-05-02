@@ -9,6 +9,8 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   id?: string;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
 function formatDisplay(dateStr: string): string {
@@ -66,6 +68,8 @@ export default function DatePicker({
   onChange,
   placeholder = "Select a date",
   id,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,7 +118,11 @@ export default function DatePicker({
             mode="single"
             selected={selected}
             onSelect={handleSelect}
-            defaultMonth={selected}
+            defaultMonth={selected ?? minDate ?? maxDate}
+            disabled={[
+              ...(minDate ? [{ before: minDate }] : []),
+              ...(maxDate ? [{ after: maxDate }] : []),
+            ]}
             showOutsideDays
             components={{ DayButton, MonthCaption }}
             classNames={{

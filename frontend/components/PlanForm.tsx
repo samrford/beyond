@@ -14,11 +14,18 @@ import {
   MapPin as MapPinIcon,
   AlignLeft as AlignLeftIcon
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { getImageUrl, apiDelete } from "@/lib/api";
 import DatePicker from "./DatePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
 import ConfirmModal from "./ConfirmModal";
 import { Plan } from "@/lib/queries/plans";
+
+function parseLocalDate(s: string): Date | undefined {
+  if (!s) return undefined;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 interface PlanFormProps {
   initialData?: Partial<Plan>;
@@ -101,6 +108,15 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.endDate < formData.startDate
+    ) {
+      toast.error("End date can't be before start date");
+      return;
+    }
+
     // Warn when the start date was just set to a past date — guards against
     // typos like picking this year instead of next. Skip the warning if the
     // date already matched the initial value (so editing a long-past trip
@@ -149,6 +165,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
             value={formData.startDate}
             onChange={(v) => { setIsDirty(true); setFormData((prev) => ({ ...prev, startDate: v })); }}
             placeholder="Select a date"
+            maxDate={parseLocalDate(formData.endDate)}
           />
         </div>
         <div>
@@ -159,6 +176,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
             value={formData.endDate}
             onChange={(v) => { setIsDirty(true); setFormData((prev) => ({ ...prev, endDate: v })); }}
             placeholder="Select a date"
+            minDate={parseLocalDate(formData.startDate)}
           />
         </div>
       </div>
