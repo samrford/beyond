@@ -50,3 +50,8 @@ out/
 # package-lock.json
 # go.sum
 frontend/seville.json
+
+# Agent / AI tooling (personal)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
