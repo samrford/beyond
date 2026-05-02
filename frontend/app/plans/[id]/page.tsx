@@ -45,6 +45,7 @@ export default function PlanDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [activeDragItem, setActiveDragItem] = useState<PlanItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDeletingOrphans, setIsDeletingOrphans] = useState(false);
   const [editingItem, setEditingItem] = useState<PlanItem | null>(null);
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -342,40 +343,84 @@ export default function PlanDetailPage() {
     });
   };
 
-  const handleGenerateDays = async () => {
-    if (!plan.startDate || !plan.endDate) return;
+  // YYYY-MM-DD key from any RFC3339 / ISO string. Compared in UTC so a
+  // plan stored as "2026-05-09T00:00:00Z" matches regardless of viewer TZ.
+  const toDateKey = (s: string) => new Date(s).toISOString().slice(0, 10);
+
+  const computeExpectedDateKeys = (startStr: string, endStr: string): string[] => {
+    const out: string[] = [];
+    const curr = new Date(startStr);
+    const end = new Date(endStr);
+    while (curr <= end) {
+      out.push(curr.toISOString().slice(0, 10));
+      curr.setUTCDate(curr.getUTCDate() + 1);
+    }
+    return out;
+  };
+
+  const dateMismatch = (() => {
+    if (!plan?.startDate || !plan?.endDate) {
+      return { missingDateKeys: [] as string[], orphanDays: [] as PlanDay[] };
+    }
+    const expected = computeExpectedDateKeys(plan.startDate, plan.endDate);
+    const expectedSet = new Set(expected);
+    const existingSet = new Set((plan.days || []).map((d) => toDateKey(d.date)));
+    const missingDateKeys = expected.filter((k) => !existingSet.has(k));
+    const orphanDays = (plan.days || []).filter((d) => !expectedSet.has(toDateKey(d.date)));
+    return { missingDateKeys, orphanDays };
+  })();
+
+  const orphanItemCount = dateMismatch.orphanDays.reduce(
+    (sum, d) => sum + (d.items?.length ?? 0),
+    0,
+  );
+
+  const handleAddMissingDays = async () => {
+    if (!plan?.startDate || !plan?.endDate) return;
+    const { missingDateKeys } = dateMismatch;
+    if (missingDateKeys.length === 0) return;
 
     setIsGenerating(true);
     try {
-      const start = new Date(plan.startDate);
-      const end = new Date(plan.endDate);
-      const days = [];
-
-      let curr = new Date(start);
-      while (curr <= end) {
-        days.push(new Date(curr));
-        curr.setDate(curr.getDate() + 1);
-      }
-
-      const createdDays: PlanDay[] = [];
-      for (const date of days) {
-        const newDay = await apiFetch<PlanDay>(`/v1/plans/${id}/days`, {
+      for (const key of missingDateKeys) {
+        await apiFetch<PlanDay>(`/v1/plans/${id}/days`, {
           method: "POST",
-          body: JSON.stringify({ date: date.toISOString() }),
+          body: JSON.stringify({ date: `${key}T00:00:00Z` }),
         });
-        createdDays.push({ ...newDay, items: [] });
       }
-
-      setPlan((prev: Plan | null) => ({
-        ...prev,
-        days: createdDays,
-      } as Plan));
       queryClient.invalidateQueries({ queryKey: planKeys.detail(id) });
+      toast.success(
+        `Added ${missingDateKeys.length} day${missingDateKeys.length === 1 ? "" : "s"}`,
+      );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to generate days");
+      toast.error("Failed to add missing days");
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleDeleteOrphanDays = async () => {
+    const { orphanDays } = dateMismatch;
+    if (orphanDays.length === 0) return;
+
+    setIsDeletingOrphans(true);
+    try {
+      for (const day of orphanDays) {
+        await apiFetch(`/v1/plans/days/${day.id}`, { method: "DELETE" });
+      }
+      queryClient.invalidateQueries({ queryKey: planKeys.detail(id) });
+      const itemMsg = orphanItemCount > 0
+        ? ` (${orphanItemCount} item${orphanItemCount === 1 ? "" : "s"} moved to scratchpad)`
+        : "";
+      toast.success(
+        `Removed ${orphanDays.length} day${orphanDays.length === 1 ? "" : "s"}${itemMsg}`,
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to remove days");
+    } finally {
+      setIsDeletingOrphans(false);
     }
   };
 
@@ -571,7 +616,54 @@ export default function PlanDetailPage() {
                       (() => {
                         const selectedDayIndex = Math.max(0, plan.days.findIndex((d: PlanDay) => d.id === selectedDayId));
                         const currentDay = plan.days[selectedDayIndex] ?? plan.days[0];
+                        const { missingDateKeys, orphanDays } = dateMismatch;
+                        const showBanner = isOwner && (missingDateKeys.length > 0 || orphanDays.length > 0);
                         return (
+                      <>
+                      {showBanner && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-4 flex items-center justify-between gap-4 flex-wrap">
+                          <div className="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-200">
+                            <TriangleAlert size={16} className="shrink-0" />
+                            <span>
+                              {missingDateKeys.length > 0 && (
+                                <>{missingDateKeys.length} day{missingDateKeys.length === 1 ? "" : "s"} missing from your plan range</>
+                              )}
+                              {missingDateKeys.length > 0 && orphanDays.length > 0 && " · "}
+                              {orphanDays.length > 0 && (
+                                <>{orphanDays.length} day{orphanDays.length === 1 ? "" : "s"} outside your plan range</>
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            {missingDateKeys.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={handleAddMissingDays}
+                                disabled={isGenerating}
+                                className="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-900 dark:text-amber-100 rounded text-xs font-semibold hover:bg-amber-200 dark:hover:bg-amber-900/60 disabled:opacity-50 transition-colors"
+                              >
+                                {isGenerating
+                                  ? "Adding..."
+                                  : `Add ${missingDateKeys.length} day${missingDateKeys.length === 1 ? "" : "s"}`}
+                              </button>
+                            )}
+                            {orphanDays.length > 0 && (
+                              <button
+                                type="button"
+                                onClick={handleDeleteOrphanDays}
+                                disabled={isDeletingOrphans}
+                                className="px-3 py-1.5 bg-red-100 dark:bg-red-900/40 text-red-900 dark:text-red-100 rounded text-xs font-semibold hover:bg-red-200 dark:hover:bg-red-900/60 disabled:opacity-50 transition-colors"
+                              >
+                                {isDeletingOrphans
+                                  ? "Removing..."
+                                  : orphanItemCount > 0
+                                  ? `Remove ${orphanDays.length} (${orphanItemCount} item${orphanItemCount === 1 ? "" : "s"} → scratchpad)`
+                                  : `Remove ${orphanDays.length} day${orphanDays.length === 1 ? "" : "s"}`}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
                       <div className="relative">
                         {/* Shared day header — stays put while the carousel slides under it */}
                         <div className="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-t-lg flex justify-between items-center">
@@ -704,6 +796,7 @@ export default function PlanDetailPage() {
                        ))}
                      </div>
                    </div>
+                      </>
                         );
                       })()
                  ) : (
@@ -711,7 +804,7 @@ export default function PlanDetailPage() {
                         <p className="text-gray-500 dark:text-gray-400 mb-4">No days added to this itinerary yet.</p>
                         {isOwner && (
                           <button
-                            onClick={handleGenerateDays}
+                            onClick={handleAddMissingDays}
                             disabled={isGenerating}
                             className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 font-medium text-sm transition-colors disabled:opacity-50"
                           >
