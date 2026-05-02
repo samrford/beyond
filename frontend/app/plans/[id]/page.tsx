@@ -52,20 +52,47 @@ export default function PlanDetailPage() {
   const [isGridModalOpen, setIsGridModalOpen] = useState(false);
 
   const isProgrammaticScroll = useRef(false);
+  const scrollSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync scroll with selectedDayId
+  const navigateToDay = (dayId: string) => {
+    setSelectedDayId(dayId);
+  };
+
   useEffect(() => {
-    if (selectedDayId) {
-      const el = document.getElementById(`day-container-${selectedDayId}`);
-      if (el && el.parentElement) {
-        isProgrammaticScroll.current = true;
-        el.parentElement.scrollTo({ left: el.offsetLeft - el.parentElement.offsetLeft, behavior: 'smooth' });
-        setTimeout(() => {
-          isProgrammaticScroll.current = false;
-        }, 800);
+    if (!selectedDayId) return;
+    const el = document.getElementById(`day-container-${selectedDayId}`);
+    if (!el || !el.parentElement) return;
+
+    const parent = el.parentElement;
+    isProgrammaticScroll.current = true;
+    parent.scrollTo({ left: el.offsetLeft - parent.offsetLeft, behavior: 'smooth' });
+
+    const handleScrollEnd = () => {
+      isProgrammaticScroll.current = false;
+      if (scrollSettleTimer.current) {
+        clearTimeout(scrollSettleTimer.current);
+        scrollSettleTimer.current = null;
       }
-    }
+    };
+    parent.addEventListener('scrollend', handleScrollEnd, { once: true });
+
+    // Safety net for browsers without scrollend support
+    if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
+    scrollSettleTimer.current = setTimeout(() => {
+      isProgrammaticScroll.current = false;
+      parent.removeEventListener('scrollend', handleScrollEnd);
+    }, 1500);
+
+    return () => {
+      parent.removeEventListener('scrollend', handleScrollEnd);
+    };
   }, [selectedDayId]);
+
+  useEffect(() => {
+    return () => {
+      if (scrollSettleTimer.current) clearTimeout(scrollSettleTimer.current);
+    };
+  }, []);
 
   const handleMapClick = (lat: number, lng: number) => {
     if (isSelectingLocation && editingItem) {
@@ -541,9 +568,42 @@ export default function PlanDetailPage() {
 
                   <div className="pb-20">
                     {plan.days && plan.days.length > 0 ? (
+                      (() => {
+                        const selectedDayIndex = Math.max(0, plan.days.findIndex((d: PlanDay) => d.id === selectedDayId));
+                        const currentDay = plan.days[selectedDayIndex] ?? plan.days[0];
+                        return (
                       <div className="relative">
+                        {/* Shared day header — stays put while the carousel slides under it */}
+                        <div className="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border border-gray-200 dark:border-gray-700 rounded-t-lg flex justify-between items-center">
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => {
+                                if (selectedDayIndex > 0) navigateToDay(plan.days[selectedDayIndex - 1].id);
+                              }}
+                              disabled={selectedDayIndex === 0}
+                              aria-label="Previous day"
+                              className="h-7 w-7 flex items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/60 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-transparent disabled:hover:bg-transparent transition-colors"
+                            >
+                              <ChevronLeft size={18} />
+                            </button>
+                            <h3 className="font-semibold text-gray-800 dark:text-gray-200">
+                              Day {selectedDayIndex + 1} of {plan.days.length} - {new Date(currentDay.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                            </h3>
+                            <button
+                              onClick={() => {
+                                if (selectedDayIndex < plan.days.length - 1) navigateToDay(plan.days[selectedDayIndex + 1].id);
+                              }}
+                              disabled={selectedDayIndex === plan.days.length - 1}
+                              aria-label="Next day"
+                              className="h-7 w-7 flex items-center justify-center rounded-full bg-primary-50 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400 hover:bg-primary-100 dark:hover:bg-primary-900/60 hover:text-primary-700 dark:hover:text-primary-300 disabled:opacity-30 disabled:cursor-not-allowed disabled:bg-transparent disabled:hover:bg-transparent transition-colors"
+                            >
+                              <ChevronRight size={18} />
+                            </button>
+                          </div>
+                          {currentDay.notes && <span className="text-xs text-gray-500 truncate max-w-[200px]">{currentDay.notes}</span>}
+                        </div>
                         {/* Scrollable Container */}
-                        <div 
+                        <div
                           className="flex overflow-x-auto snap-x snap-mandatory [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 pb-4"
                           onScroll={(e) => {
                             if (isProgrammaticScroll.current) return;
@@ -555,38 +615,12 @@ export default function PlanDetailPage() {
                             }
                           }}
                         >
-                          {plan.days.map((day: PlanDay, i: number) => (
-                            <div 
-                              key={day.id} 
+                          {plan.days.map((day: PlanDay) => (
+                            <div
+                              key={day.id}
                               id={`day-container-${day.id}`}
-                              className="min-w-full w-full snap-center flex-shrink-0 self-start bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                              className="min-w-full w-full snap-center flex-shrink-0 self-start bg-white dark:bg-gray-800 rounded-b-lg shadow-sm border border-t-0 border-gray-200 dark:border-gray-700 overflow-hidden"
                             >
-                          <div className="bg-gray-100 dark:bg-gray-700/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                            <div className="flex items-center gap-3">
-                              <button
-                                onClick={() => {
-                                  if (i > 0) setSelectedDayId(plan.days[i-1].id);
-                                }}
-                                disabled={i === 0}
-                                className="p-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-30 transition-colors"
-                              >
-                                <ChevronLeft size={18} />
-                              </button>
-                              <h3 className="font-semibold text-gray-800 dark:text-gray-200">
-                                Day {i + 1} - {new Date(day.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                              </h3>
-                              <button
-                                onClick={() => {
-                                  if (i < plan.days.length - 1) setSelectedDayId(plan.days[i+1].id);
-                                }}
-                                disabled={i === plan.days.length - 1}
-                                className="p-1 text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 disabled:opacity-30 transition-colors"
-                              >
-                                <ChevronRight size={18} />
-                              </button>
-                            </div>
-                            {day.notes && <span className="text-xs text-gray-500 truncate max-w-[200px]">{day.notes}</span>}
-                          </div>
                           <div
                             className={`p-4 min-h-[100px] transition-colors ${activeDragItem ? "bg-gray-50 dark:bg-gray-800/80 outline outline-2 outline-dashed outline-gray-300 dark:outline-gray-600 outline-offset-[-4px]" : ""}`}
                             onDragOver={handleDragOver}
@@ -670,6 +704,8 @@ export default function PlanDetailPage() {
                        ))}
                      </div>
                    </div>
+                        );
+                      })()
                  ) : (
                       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
                         <p className="text-gray-500 dark:text-gray-400 mb-4">No days added to this itinerary yet.</p>
