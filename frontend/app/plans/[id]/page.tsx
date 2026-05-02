@@ -521,7 +521,7 @@ export default function PlanDetailPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full py-4 text-center pointer-events-none">
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">{isOwner ? "Drop items here to unassign them, or add new ideas!" : "No unassigned items."}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">{isOwner ? "Drag items here to remove them from a day, or add new ideas!" : "No unassigned items."}</p>
                       </div>
                     )}
                   </div>
