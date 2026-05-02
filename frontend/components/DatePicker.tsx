@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { DayPicker, type DayButtonProps } from "react-day-picker";
+import { DayPicker, type DayButtonProps, type MonthCaptionProps } from "react-day-picker";
 import { Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface DatePickerProps {
@@ -9,6 +9,8 @@ interface DatePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   id?: string;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
 function formatDisplay(dateStr: string): string {
@@ -19,6 +21,22 @@ function formatDisplay(dateStr: string): string {
     month: "long",
     year: "numeric",
   });
+}
+
+function MonthCaption({ calendarMonth, displayIndex, className, children, ...divProps }: MonthCaptionProps) {
+  const today = new Date();
+  const date = calendarMonth.date;
+  const isCurrentMonth =
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear();
+  const colorClass = isCurrentMonth
+    ? "text-primary-600 dark:text-primary-400"
+    : "text-gray-900 dark:text-white";
+  return (
+    <div {...divProps} className={`${className ?? ""} ${colorClass}`}>
+      {children}
+    </div>
+  );
 }
 
 function DayButton({ day, modifiers, onClick, ...props }: DayButtonProps) {
@@ -50,6 +68,8 @@ export default function DatePicker({
   onChange,
   placeholder = "Select a date",
   id,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,15 +118,19 @@ export default function DatePicker({
             mode="single"
             selected={selected}
             onSelect={handleSelect}
-            defaultMonth={selected}
+            defaultMonth={selected ?? minDate ?? maxDate}
+            disabled={[
+              ...(minDate ? [{ before: minDate }] : []),
+              ...(maxDate ? [{ after: maxDate }] : []),
+            ]}
             showOutsideDays
-            components={{ DayButton }}
+            components={{ DayButton, MonthCaption }}
             classNames={{
               root: "p-3 w-[280px]",
               months: "",
               month: "space-y-2",
-              month_caption: "flex justify-center items-center relative h-8 mb-1",
-              caption_label: "text-sm font-semibold text-gray-900 dark:text-white",
+              month_caption: "flex justify-center items-center h-8 mb-1",
+              caption_label: "text-sm font-semibold",
               nav: "absolute inset-x-0 flex justify-between px-1 pointer-events-none",
               button_previous:
                 "pointer-events-auto h-7 w-7 rounded-lg flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
