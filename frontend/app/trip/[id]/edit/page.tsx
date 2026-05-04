@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import TripForm from "@/components/TripForm";
 import { useTrip, useUpdateTrip } from "@/lib/queries/trips";
@@ -13,6 +14,12 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
   const { data: trip, isLoading, isError, error, refetch } = useTrip(params.id);
   const updateTrip = useUpdateTrip(params.id);
 
+  useEffect(() => {
+    if (trip && !trip.isOwner) {
+      router.replace(`/trip/${params.id}`);
+    }
+  }, [trip, params.id, router]);
+
   const initialData = trip
     ? {
         name: trip.name,
@@ -20,12 +27,20 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
         endDate: trip.endDate,
         headerPhoto: trip.headerPhoto,
         summary: trip.summary,
+        isPublic: trip.isPublic,
       }
     : null;
 
   const handleSubmit = async (data: TripData) => {
+    if (!trip) return;
     try {
-      await updateTrip.mutateAsync(data);
+      await updateTrip.mutateAsync({
+        ...data,
+        bgMode: trip.bgMode,
+        bgBlur: trip.bgBlur,
+        bgOpacity: trip.bgOpacity,
+        bgDarkness: trip.bgDarkness,
+      });
       toast.success("Trip updated!");
       router.push(`/trip/${params.id}`);
       router.refresh();

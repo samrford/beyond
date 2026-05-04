@@ -17,6 +17,9 @@ interface Checkpoint {
   photos: string[];
   journal: string;
   heroPhoto?: string;
+  sidePhoto1?: string;
+  sidePhoto2?: string;
+  sidePhoto3?: string;
 }
 
 interface CheckpointCardProps {
@@ -27,9 +30,10 @@ interface CheckpointCardProps {
   onEdit: (checkpoint: Checkpoint) => void;
   isFirst?: boolean;
   isLast?: boolean;
+  readOnly?: boolean;
 }
 
-export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit, isFirst, isLast }: CheckpointCardProps) {
+export default function CheckpointCard({ checkpoint, index, tripId, onDelete, onEdit, isFirst, isLast, readOnly = false }: CheckpointCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [photoModalOpen, setPhotoModalOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
@@ -104,10 +108,13 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
   const isLong = plainJournal.length > 120;
   const photos = checkpoint.photos || [];
   const totalPhotos = photos.length;
-  // photos[0..2] are always shown; slot 4 is overflow if there are more than 4
-  const overflowCount = totalPhotos > 4 ? totalPhotos - 3 : 0;
-  // Hero is the designated heroPhoto, falling back to the first photo
   const heroPhoto = checkpoint.heroPhoto || photos[0];
+  // Explicit side slots fall back to positional photos if not set
+  const side1 = checkpoint.sidePhoto1 || photos[1];
+  const side2 = checkpoint.sidePhoto2 || photos[2];
+  const side3 = checkpoint.sidePhoto3 || photos[3];
+  const sidePhotos = [side1, side2, side3].filter(Boolean) as string[];
+  const overflowCount = totalPhotos > 4 ? totalPhotos - 4 : 0;
 
   return (
     <div className="relative pl-8">
@@ -127,22 +134,24 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
             <p className="text-sm text-gray-500 dark:text-gray-400">{checkpoint.location}</p>
           </div>
           <div className="flex flex-col items-end gap-2">
-            <div className="flex items-center gap-2 text-gray-400">
-              <button
-                onClick={() => onEdit(checkpoint)}
-                className="hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-full transition-colors"
-                title="Edit Checkpoint"
-              >
-                <Pencil size={18} />
-              </button>
-              <button
-                onClick={() => onDelete(checkpoint.id)}
-                className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors"
-                title="Delete Checkpoint"
-              >
-                <Trash2 size={18} />
-              </button>
-            </div>
+            {!readOnly && (
+              <div className="flex items-center gap-2 text-gray-400">
+                <button
+                  onClick={() => onEdit(checkpoint)}
+                  className="hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 p-1.5 rounded-full transition-colors"
+                  title="Edit Checkpoint"
+                >
+                  <Pencil size={18} />
+                </button>
+                <button
+                  onClick={() => onDelete(checkpoint.id)}
+                  className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-full transition-colors"
+                  title="Delete Checkpoint"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            )}
             <span className="text-xs text-gray-400 dark:text-gray-500">
               {new Date(checkpoint.timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
             </span>
@@ -189,19 +198,19 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
             </button>
 
             {/* Sidebar — three stacked thumbnails */}
-            {totalPhotos > 1 && (
+            {sidePhotos.length > 0 && (
               <div className="flex flex-col flex-[2] gap-1.5">
-                {[1, 2].map((i) =>
-                  photos[i] ? (
+                {[0, 1].map((i) =>
+                  sidePhotos[i] ? (
                     <button
                       key={i}
                       type="button"
-                      onClick={() => openPhotoInModal(photos[i])}
+                      onClick={() => openPhotoInModal(sidePhotos[i])}
                       className="relative flex-1 overflow-hidden hover:opacity-90 transition-opacity"
                     >
                       <AuthImage
-                        src={getImageUrl(photos[i], 400)}
-                        alt={`${checkpoint.name} ${i + 1}`}
+                        src={getImageUrl(sidePhotos[i], 400)}
+                        alt={`${checkpoint.name} side ${i + 1}`}
                         fill
                         className="object-cover"
                       />
@@ -211,7 +220,7 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                   )
                 )}
 
-                {totalPhotos > 3 && (
+                {sidePhotos[2] && (
                   overflowCount > 0 ? (
                     <button
                       type="button"
@@ -219,8 +228,8 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                       className="relative flex-1 overflow-hidden"
                     >
                       <AuthImage
-                        src={getImageUrl(photos[3], 400)}
-                        alt={`${checkpoint.name} 4`}
+                        src={getImageUrl(sidePhotos[2], 400)}
+                        alt={`${checkpoint.name} side 3`}
                         fill
                         className="object-cover"
                       />
@@ -229,14 +238,18 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                       </div>
                     </button>
                   ) : (
-                    <div className="relative flex-1 overflow-hidden">
+                    <button
+                      type="button"
+                      onClick={() => openPhotoInModal(sidePhotos[2])}
+                      className="relative flex-1 overflow-hidden hover:opacity-90 transition-opacity"
+                    >
                       <AuthImage
-                        src={getImageUrl(photos[3], 400)}
-                        alt={`${checkpoint.name} 4`}
+                        src={getImageUrl(sidePhotos[2], 400)}
+                        alt={`${checkpoint.name} side 3`}
                         fill
                         className="object-cover"
                       />
-                    </div>
+                    </button>
                   )
                 )}
               </div>

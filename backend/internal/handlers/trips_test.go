@@ -24,11 +24,11 @@ func TestListTrips(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	rows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1").
-		AddRow("2", "Trip 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "photo2.jpg", "Summary 2")
+	rows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "is_public"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", false).
+		AddRow("2", "Trip 2", now.AddDate(0, 1, 0), now.AddDate(0, 1, 7), "photo2.jpg", "Summary 2", true)
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary FROM trips WHERE user_id = \\$1 ORDER BY start_date ASC").
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, is_public FROM trips WHERE user_id = \\$1 ORDER BY start_date ASC").
 		WithArgs(testUserID).
 		WillReturnRows(rows)
 
@@ -63,18 +63,18 @@ func TestGetTrip(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56)
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID)
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness FROM trips WHERE id = \\$1 AND user_id = \\$2").
-		WithArgs("1", testUserID).
+	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness, is_public, user_id FROM trips WHERE id = \\$1").
+		WithArgs("1").
 		WillReturnRows(tripRows)
 
-	checkpointRows := sqlmock.NewRows([]string{"id", "name", "location", "timestamp", "description", "photos", "journal", "hero_photo"}).
-		AddRow("c1", "Checkpoint 1", "Location 1", now, "Description 1", []byte(`["img1.jpg"]`), "Journal 1", "").
-		AddRow("c2", "Checkpoint 2", "Location 2", now.Add(time.Hour), "Description 2", []byte(`[]`), "Journal 2", "")
+	checkpointRows := sqlmock.NewRows([]string{"id", "name", "location", "timestamp", "end_timestamp", "description", "photos", "journal", "hero_photo", "side_photo_1", "side_photo_2", "side_photo_3"}).
+		AddRow("c1", "Checkpoint 1", "Location 1", now, nil, "Description 1", []byte(`["img1.jpg"]`), "Journal 1", "", "", "", "").
+		AddRow("c2", "Checkpoint 2", "Location 2", now.Add(time.Hour), nil, "Description 2", []byte(`[]`), "Journal 2", "", "", "", "")
 
-	mock.ExpectQuery("SELECT id, name, location, timestamp, description, photos, journal, COALESCE\\(hero_photo, ''\\) FROM checkpoints WHERE trip_id = \\$1").
+	mock.ExpectQuery("SELECT id, name, location, timestamp, end_timestamp, description, photos, journal, COALESCE\\(hero_photo, ''\\), COALESCE\\(side_photo_1, ''\\), COALESCE\\(side_photo_2, ''\\), COALESCE\\(side_photo_3, ''\\) FROM checkpoints WHERE trip_id = \\$1").
 		WithArgs("1").
 		WillReturnRows(checkpointRows)
 
@@ -119,7 +119,7 @@ func TestCreateTrip(t *testing.T) {
 	body, _ := json.Marshal(newTrip)
 
 	mock.ExpectExec("INSERT INTO trips").
-		WithArgs(sqlmock.AnyArg(), newTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newTrip.HeaderPhoto, newTrip.Summary, testUserID).
+		WithArgs(sqlmock.AnyArg(), newTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), newTrip.HeaderPhoto, newTrip.Summary, testUserID, sqlmock.AnyArg()).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips", bytes.NewBuffer(body)))
@@ -155,8 +155,8 @@ func TestUpdateTrip(t *testing.T) {
 	}
 	body, _ := json.Marshal(updatedTrip)
 
-	mock.ExpectExec("UPDATE trips SET name = \\$1, start_date = \\$2, end_date = \\$3, header_photo = \\$4, summary = \\$5, bg_mode = \\$6, bg_blur = \\$7, bg_opacity = \\$8, bg_darkness = \\$9 WHERE id = \\$10 AND user_id = \\$11").
-		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, updatedTrip.BgMode, updatedTrip.BgBlur, updatedTrip.BgOpacity, updatedTrip.BgDarkness, "1", testUserID).
+	mock.ExpectExec("UPDATE trips SET name = \\$1, start_date = \\$2, end_date = \\$3, header_photo = \\$4, summary = \\$5, bg_mode = \\$6, bg_blur = \\$7, bg_opacity = \\$8, bg_darkness = \\$9, is_public = \\$10 WHERE id = \\$11 AND user_id = \\$12").
+		WithArgs(updatedTrip.Name, sqlmock.AnyArg(), sqlmock.AnyArg(), updatedTrip.HeaderPhoto, updatedTrip.Summary, updatedTrip.BgMode, updatedTrip.BgBlur, updatedTrip.BgOpacity, updatedTrip.BgDarkness, sqlmock.AnyArg(), "1", testUserID).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/trips/1", bytes.NewBuffer(body)))
@@ -204,8 +204,8 @@ func TestGetTrip_NotFound(t *testing.T) {
 
 	h := NewTripsHandler(db)
 
-	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1 AND user_id = \\$2").
-		WithArgs("1", testUserID).
+	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1").
+		WithArgs("1").
 		WillReturnError(sql.ErrNoRows)
 
 	req := reqWithAuth(httptest.NewRequest("GET", "/v1/trips/1", nil))
@@ -223,11 +223,11 @@ func TestGetTrip_CheckpointsError(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56)
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID)
 
-	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1 AND user_id = \\$2").
-		WithArgs("1", testUserID).
+	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1").
+		WithArgs("1").
 		WillReturnRows(tripRows)
 
 	mock.ExpectQuery("SELECT .* FROM checkpoints WHERE trip_id = \\$1").

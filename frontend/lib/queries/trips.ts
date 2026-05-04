@@ -23,6 +23,8 @@ export interface Trip {
   bgBlur: number;
   bgOpacity: number;
   bgDarkness: number;
+  isPublic: boolean;
+  isOwner: boolean;
   checkpoints: Checkpoint[] | null;
 }
 
@@ -36,6 +38,9 @@ export interface Checkpoint {
   photos: string[];
   journal: string;
   heroPhoto?: string;
+  sidePhoto1?: string;
+  sidePhoto2?: string;
+  sidePhoto3?: string;
 }
 
 // ─── Query Keys ──────────────────────────────────────────

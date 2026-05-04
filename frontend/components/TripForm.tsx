@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, FormEvent, useRef, useEffect } from "react";
-import { Upload, X, Calendar, AlignLeft } from "lucide-react";
+import { Upload, X, Calendar, AlignLeft, Globe, Lock } from "lucide-react";
 import { useUpload } from "@/app/hooks/useUpload";
 import { getImageUrl, apiDelete } from "@/lib/api";
 import AuthImage from "@/components/AuthImage";
@@ -14,6 +14,7 @@ export interface TripData {
   endDate: string;
   headerPhoto: string;
   summary: string;
+  isPublic?: boolean;
 }
 
 interface TripFormProps {
@@ -41,6 +42,7 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
     endDate: formatDateForInput(initialData?.endDate) || "",
     headerPhoto: initialData?.headerPhoto || "",
     summary: initialData?.summary || "",
+    isPublic: initialData?.isPublic ?? false,
   });
 
   const pendingUploads = useRef<Set<string>>(new Set());
@@ -200,6 +202,28 @@ export default function TripForm({ initialData, onSubmit, onCancel, isLoading }:
           placeholder="Briefly describe this trip..."
           className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 outline-none resize-none"
         />
+      </div>
+
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex items-start gap-3">
+        <button
+          type="button"
+          onClick={() => setFormData((prev) => ({ ...prev, isPublic: !prev.isPublic }))}
+          className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${formData.isPublic ? "bg-primary-600" : "bg-gray-300 dark:bg-gray-600"}`}
+          aria-pressed={formData.isPublic ?? false}
+        >
+          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${formData.isPublic ? "translate-x-5" : "translate-x-0.5"}`} />
+        </button>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            {formData.isPublic ? <Globe size={14} /> : <Lock size={14} />}
+            {formData.isPublic ? "Public trip" : "Private trip"}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {formData.isPublic
+              ? "Other users can see this trip on your profile."
+              : "Only you can see this trip."}
+          </p>
+        </div>
       </div>
 
       <div className="flex gap-4 pt-4">

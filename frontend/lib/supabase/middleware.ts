@@ -43,9 +43,19 @@ export async function updateSession(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Public routes that don't require auth
-  const publicRoutes = ["/login", "/signup", "/reset-password", "/auth/callback"];
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+  // Auth-related public routes
+  const authPublicRoutes = ["/login", "/signup", "/reset-password", "/auth/callback"];
+  const isAuthPublicRoute = authPublicRoutes.some((route) => pathname.startsWith(route));
+
+  // Resource pages that anonymous visitors can view. The page itself
+  // queries the backend, which returns 404 for non-public resources.
+  // Strict regex so e.g. /plans/new and /trip/{id}/edit still redirect.
+  const isPublicResourceRoute =
+    /^\/u\/[^/]+\/?$/.test(pathname) ||
+    /^\/trip\/[^/]+\/?$/.test(pathname) ||
+    /^\/plans\/(?!new$|import$)[^/]+\/?$/.test(pathname);
+
+  const isPublicRoute = isAuthPublicRoute || isPublicResourceRoute;
 
   // If no user and trying to access a protected route → redirect to login
   if (!user && !isPublicRoute) {
