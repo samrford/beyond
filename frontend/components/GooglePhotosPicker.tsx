@@ -163,7 +163,8 @@ export default function GooglePhotosPicker({
     phase === "importing";
 
   const connected = !!status.data?.connected;
-  const connectedIdle = connected && phase === "idle";
+  const canDisconnect =
+    connected && phase !== "picking" && phase !== "importing";
 
   const label = (() => {
     if (!connected) return "Connect Google Photos account";
@@ -194,7 +195,7 @@ export default function GooglePhotosPicker({
           <GooglePhotosLogo size={22} />
           <span className="text-xs font-bold">{label}</span>
         </button>
-        {connectedIdle && (
+        {canDisconnect && (
           <button
             type="button"
             onClick={() => disconnect.mutate()}
@@ -224,7 +225,7 @@ export default function GooglePhotosPicker({
           {connected ? <GooglePhotosLogo size={16} /> : <LinkIcon size={16} />}
           <span className="flex-1 text-left">{label}</span>
         </button>
-        {connectedIdle && (
+        {canDisconnect && (
           <button
             type="button"
             onClick={() => disconnect.mutate()}
