@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
@@ -11,16 +12,33 @@ import (
 	"time"
 
 	"beyond/backend/internal/data"
+	"beyond/backend/internal/email"
 )
 
 // InvitesHandler manages outgoing invites per resource and the unified
 // preview/accept/decline flow against a token.
 type InvitesHandler struct {
-	db *sql.DB
+	db            *sql.DB
+	emailSender   email.Sender    // nil-safe via NoopSender; see NewInvitesHandler
+	supabase      *data.SupabaseAdmin // optional; if nil, direct invite emails are skipped
+	frontendOrigin string         // base URL for invite deep links (e.g. https://beyond-travel.net)
 }
 
 func NewInvitesHandler(db *sql.DB) *InvitesHandler {
-	return &InvitesHandler{db: db}
+	return &InvitesHandler{db: db, emailSender: email.NoopSender{}}
+}
+
+// WithEmail wires the email-sending dependencies. Pass nil for any piece you
+// don't have configured — the handler stays functional and just skips the
+// email step (invite creation itself is unaffected).
+func (h *InvitesHandler) WithEmail(sender email.Sender, supabase *data.SupabaseAdmin, frontendOrigin string) *InvitesHandler {
+	if sender == nil {
+		sender = email.NoopSender{}
+	}
+	h.emailSender = sender
+	h.supabase = supabase
+	h.frontendOrigin = strings.TrimRight(frontendOrigin, "/")
+	return h
 }
 
 // ─── Types ───────────────────────────────────────────────────────────────
@@ -323,11 +341,92 @@ func (h *InvitesHandler) createInvite(w http.ResponseWriter, r *http.Request, ki
 		out.RecipientUserID = &s
 		n := 1
 		out.MaxUses = &n
+
+		// Fire the invite email out-of-band. Failures are logged but never
+		// propagated — the invite itself is already persisted and accepting
+		// it via the in-app invitations inbox does not depend on the email.
+		go h.sendInviteEmail(kind, resourceID, *body.RecipientUserID, userID, body.Role, token)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(out)
+}
+
+// sendInviteEmail looks up the recipient's email address and the inviter's
+// profile, then dispatches a transactional email via the configured sender.
+// Runs in its own goroutine so the HTTP response is not blocked by network
+// IO to Supabase or Resend. Always silent on success; logs on failure.
+func (h *InvitesHandler) sendInviteEmail(kind, resourceID, recipientID, inviterID, role, token string) {
+	if h.supabase == nil || h.frontendOrigin == "" {
+		// Email path not configured — nothing to do. Log once at info level
+		// so it's obvious in dev when emails aren't going out.
+		log.Printf("invite email skipped (email path not configured): kind=%s resource=%s recipient=%s", kind, resourceID, recipientID)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	user, err := h.supabase.GetUser(ctx, recipientID)
+	if err != nil {
+		log.Printf("invite email: lookup recipient %s failed: %v", recipientID, err)
+		return
+	}
+	if user.Email == "" {
+		log.Printf("invite email: recipient %s has no email on file", recipientID)
+		return
+	}
+
+	var (
+		recipientDisplay string
+		inviterHandle    string
+		inviterDisplay   string
+		resourceName     string
+	)
+	_ = h.db.QueryRow(
+		`SELECT COALESCE(display_name, '') FROM user_profiles WHERE user_id = $1`,
+		recipientID,
+	).Scan(&recipientDisplay)
+	_ = h.db.QueryRow(
+		`SELECT COALESCE(handle, ''), COALESCE(display_name, '') FROM user_profiles WHERE user_id = $1`,
+		inviterID,
+	).Scan(&inviterHandle, &inviterDisplay)
+
+	switch kind {
+	case "trip":
+		_ = h.db.QueryRow(`SELECT name FROM trips WHERE id = $1`, resourceID).Scan(&resourceName)
+	case "plan":
+		_ = h.db.QueryRow(`SELECT name FROM plans WHERE id = $1`, resourceID).Scan(&resourceName)
+	}
+	if resourceName == "" {
+		resourceName = "your " + kind
+	}
+
+	inviterName := inviterDisplay
+	if inviterName == "" {
+		inviterName = inviterHandle
+	}
+	if inviterName == "" {
+		inviterName = "Someone"
+	}
+
+	payload := email.InviteEmailData{
+		RecipientEmail: user.Email,
+		RecipientName:  recipientDisplay,
+		InviterName:    inviterName,
+		InviterHandle:  inviterHandle,
+		ResourceKind:   kind,
+		ResourceName:   resourceName,
+		Role:           role,
+		InviteURL:      h.frontendOrigin + "/invite/" + token,
+	}
+
+	if err := h.emailSender.SendInviteEmail(ctx, payload); err != nil {
+		log.Printf("invite email: send to %s failed: %v", user.Email, err)
+		return
+	}
+	log.Printf("invite email sent: kind=%s resource=%s recipient=%s", kind, resourceID, recipientID)
 }
 
 func (h *InvitesHandler) revokeInvite(w http.ResponseWriter, r *http.Request, kind, resourceID, token string) {

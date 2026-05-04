@@ -17,6 +17,7 @@ import (
 	ppg "github.com/samrford/google-photos-picker/postgres"
 
 	"beyond/backend/internal/data"
+	"beyond/backend/internal/email"
 	"beyond/backend/internal/handlers"
 	"beyond/backend/internal/jobs"
 )
@@ -269,6 +270,26 @@ func main() {
 	profilesHandler := handlers.NewProfilesHandler(db)
 	collaboratorsHandler := handlers.NewCollaboratorsHandler(db)
 	invitesHandler := handlers.NewInvitesHandler(db)
+
+	// Wire optional email-on-invite path. All three pieces (Resend key,
+	// Supabase service role key, frontend origin) must be set or we fall
+	// back to a no-op sender so dev environments aren't forced to configure
+	// email just to test invites.
+	resendKey := os.Getenv("RESEND_API_KEY")
+	resendFrom := os.Getenv("RESEND_FROM")
+	if resendFrom == "" {
+		resendFrom = "Beyond <invites@beyond-travel.net>"
+	}
+	supabaseServiceKey := os.Getenv("SUPABASE_SERVICE_ROLE_KEY")
+	frontendOrigin := os.Getenv("FRONTEND_ORIGIN")
+	if resendKey != "" && supabaseServiceKey != "" && frontendOrigin != "" {
+		sender := email.NewResendSender(resendKey, resendFrom)
+		admin := data.NewSupabaseAdmin(supabaseURL, supabaseServiceKey)
+		invitesHandler.WithEmail(sender, admin, frontendOrigin)
+		log.Printf("Invite emails enabled via Resend (from=%q)", resendFrom)
+	} else {
+		log.Printf("Invite emails disabled (set RESEND_API_KEY, SUPABASE_SERVICE_ROLE_KEY, FRONTEND_ORIGIN to enable)")
+	}
 	var uploader data.FileStore
 	if storage != nil {
 		uploader = storage
