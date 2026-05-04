@@ -5,6 +5,7 @@ import { X, Clock, MapPin, AlignLeft, Globe } from "lucide-react";
 import toast from "react-hot-toast";
 import ConfirmModal from "./ConfirmModal";
 import RichTextEditor from "./RichTextEditor";
+import TimePicker from "./TimePicker";
 
 interface PlanItem {
   id: string;
@@ -199,13 +200,13 @@ export default function PlanItemModal({
                 )}
               </label>
               <div className="bg-white dark:bg-gray-800 p-1 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 focus-within:border-primary-500 transition-all">
-                <input
-                  type="time"
-                  name="startTime"
-                  disabled={isScratchpad}
+                <TimePicker
                   value={formData.startTime}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 bg-transparent rounded-xl text-sm font-medium text-gray-900 dark:text-white outline-none ${isScratchpad ? "opacity-30 cursor-not-allowed" : ""}`}
+                  onChange={(v) => {
+                    setIsDirty(true);
+                    setFormData((prev) => ({ ...prev, startTime: v }));
+                  }}
+                  disabled={isScratchpad}
                 />
               </div>
               {isScratchpad && <div className="absolute inset-0 bg-gray-100/10 dark:bg-gray-900/10 backdrop-blur-[1px] flex items-center justify-center pointer-events-none" />}

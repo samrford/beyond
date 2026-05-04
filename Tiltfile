@@ -8,8 +8,8 @@ local_resource(
   ignore=['frontend/node_modules', 'frontend/.next']
 )
 
-# Load backend/.env (gitignored) into a dict. Values there override shell env,
-# so you can drop a file at backend/.env and never think about it again.
+# Load backend/.env (gitignored) into a dict. Values there override the dev
+# defaults below, so secrets stay out of the repo.
 def load_dotenv(path):
     result = {}
     contents = str(read_file(path, default=''))
@@ -27,36 +27,32 @@ def load_dotenv(path):
         result[k.strip()] = v
     return result
 
-env = load_dotenv('backend/.env')
+dotenv = load_dotenv('backend/.env')
 
 def envvar(key, fallback=''):
-    return env.get(key, os.environ.get(key, fallback))
+    return dotenv.get(key, os.environ.get(key, fallback))
 
-# Google Photos integration — optional. Drop values into backend/.env (or your
-# shell env) to enable. Missing values are fine; the backend will just log
-# "Google Photos integration disabled".
-google_client_id     = envvar('GOOGLE_CLIENT_ID')
-google_client_secret = envvar('GOOGLE_CLIENT_SECRET')
-google_redirect_url  = envvar('GOOGLE_REDIRECT_URL', 'http://localhost:8080/api/integrations/google/callback')
-google_enc_key       = envvar('GOOGLE_TOKEN_ENCRYPTION_KEY')
+# Dev defaults match docker-compose.yml — `tilt up` works out of the box with
+# no .env file. Override anything in backend/.env. Google Photos integration
+# is optional; the backend logs "Google Photos integration disabled" if the
+# four GOOGLE_* values are empty.
+backend_env = {
+    'DATABASE_URL':                envvar('DATABASE_URL', 'postgres://beyond:password@localhost:5432/beyond?sslmode=disable'),
+    'MINIO_ENDPOINT':              envvar('MINIO_ENDPOINT', 'localhost:9000'),
+    'MINIO_USER':                  envvar('MINIO_USER', 'beyond-admin'),
+    'MINIO_PASSWORD':              envvar('MINIO_PASSWORD', 'beyond-password'),
+    'MINIO_PUBLIC_URL':            envvar('MINIO_PUBLIC_URL', 'http://localhost:9000'),
+    'SUPABASE_URL':                envvar('SUPABASE_URL'),
+    'GOOGLE_CLIENT_ID':            envvar('GOOGLE_CLIENT_ID'),
+    'GOOGLE_CLIENT_SECRET':        envvar('GOOGLE_CLIENT_SECRET'),
+    'GOOGLE_REDIRECT_URL':         envvar('GOOGLE_REDIRECT_URL', 'http://localhost:8080/api/integrations/google/callback'),
+    'GOOGLE_TOKEN_ENCRYPTION_KEY': envvar('GOOGLE_TOKEN_ENCRYPTION_KEY'),
+}
 
 local_resource(
   'backend',
-  cmd='cd backend && go build -o bin/server ./cmd/server',
-  serve_cmd='''
-    cd backend && \
-    DATABASE_URL="postgres://beyond:password@localhost:5432/beyond?sslmode=disable" \
-    MINIO_ENDPOINT="localhost:9000" \
-    MINIO_USER="beyond-admin" \
-    MINIO_PASSWORD="beyond-password" \
-    MINIO_PUBLIC_URL="http://localhost:9000" \
-    SUPABASE_URL="https://zzoxjjkljxbaycmubwog.supabase.co" \
-    GOOGLE_CLIENT_ID="''' + google_client_id + '''" \
-    GOOGLE_CLIENT_SECRET="''' + google_client_secret + '''" \
-    GOOGLE_REDIRECT_URL="''' + google_redirect_url + '''" \
-    GOOGLE_TOKEN_ENCRYPTION_KEY="''' + google_enc_key + '''" \
-    ./bin/server
-  ''',
+  serve_cmd='cd backend && go run ./cmd/server',
+  serve_env=backend_env,
   deps=['backend'],
   ignore=['backend/bin']
 )
