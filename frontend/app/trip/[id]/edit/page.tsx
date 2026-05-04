@@ -32,8 +32,15 @@ export default function EditTripPage({ params }: { params: { id: string } }) {
     : null;
 
   const handleSubmit = async (data: TripData) => {
+    if (!trip) return;
     try {
-      await updateTrip.mutateAsync(data);
+      await updateTrip.mutateAsync({
+        ...data,
+        bgMode: trip.bgMode,
+        bgBlur: trip.bgBlur,
+        bgOpacity: trip.bgOpacity,
+        bgDarkness: trip.bgDarkness,
+      });
       toast.success("Trip updated!");
       router.push(`/trip/${params.id}`);
       router.refresh();

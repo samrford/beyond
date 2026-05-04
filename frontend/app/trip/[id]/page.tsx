@@ -51,6 +51,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
       endDate: trip.endDate,
       headerPhoto: trip.headerPhoto,
       summary: trip.summary,
+      isPublic: trip.isPublic,
       bgMode: bg.mode,
       bgBlur: bg.blur,
       bgOpacity: bg.opacity,
