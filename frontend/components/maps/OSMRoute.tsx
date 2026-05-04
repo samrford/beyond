@@ -54,6 +54,19 @@ function MapClickHandler({ isSelectingLocation, onMapClick }: { isSelectingLocat
   return null;
 }
 
+function ResizeHandler() {
+  const map = useMap();
+  useEffect(() => {
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [map]);
+  return null;
+}
+
 function RouteArrows({ coordinates }: { coordinates: [number, number][] }) {
   if (coordinates.length < 2) return null;
 
@@ -121,6 +134,7 @@ export default function OSMRoute({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapClickHandler isSelectingLocation={isSelectingLocation} onMapClick={onMapClick} />
+      <ResizeHandler />
       {coordinates.length > 1 && (
         <>
           {/* Base solid black line for outline effect */}
