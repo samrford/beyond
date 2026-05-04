@@ -40,7 +40,7 @@ func TestCreateCheckpoint(t *testing.T) {
 		WillReturnRows(accessRows(testUserID, false, nil))
 
 	mock.ExpectExec("INSERT INTO checkpoints").
-		WithArgs(sqlmock.AnyArg(), "trip-1", newCheckpoint.Name, newCheckpoint.Location, sqlmock.AnyArg(), newCheckpoint.Description, photosJSON, newCheckpoint.Journal, newCheckpoint.HeroPhoto, newCheckpoint.SidePhoto1, newCheckpoint.SidePhoto2, newCheckpoint.SidePhoto3).
+		WithArgs(sqlmock.AnyArg(), "trip-1", newCheckpoint.Name, newCheckpoint.Location, sqlmock.AnyArg(), newCheckpoint.EndTimestamp, newCheckpoint.Description, photosJSON, newCheckpoint.Journal, newCheckpoint.HeroPhoto, newCheckpoint.SidePhoto1, newCheckpoint.SidePhoto2, newCheckpoint.SidePhoto3).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	req := reqWithAuth(httptest.NewRequest("POST", "/v1/trips/trip-1/checkpoints", bytes.NewBuffer(body)))
@@ -87,8 +87,8 @@ func TestUpdateCheckpoint(t *testing.T) {
 		WithArgs("trip-1", testUserID).
 		WillReturnRows(accessRows(testUserID, false, nil))
 
-	mock.ExpectExec("UPDATE checkpoints SET name = \\$1, location = \\$2, timestamp = \\$3, description = \\$4, photos = \\$5, journal = \\$6, hero_photo = \\$7, side_photo_1 = \\$8, side_photo_2 = \\$9, side_photo_3 = \\$10 WHERE id = \\$11").
-		WithArgs(updatedCp.Name, updatedCp.Location, sqlmock.AnyArg(), updatedCp.Description, photosJSON, updatedCp.Journal, updatedCp.HeroPhoto, updatedCp.SidePhoto1, updatedCp.SidePhoto2, updatedCp.SidePhoto3, "cp-1").
+	mock.ExpectExec("UPDATE checkpoints SET name = \\$1, location = \\$2, timestamp = \\$3, end_timestamp = \\$4, description = \\$5, photos = \\$6, journal = \\$7, hero_photo = \\$8, side_photo_1 = \\$9, side_photo_2 = \\$10, side_photo_3 = \\$11 WHERE id = \\$12").
+		WithArgs(updatedCp.Name, updatedCp.Location, sqlmock.AnyArg(), updatedCp.EndTimestamp, updatedCp.Description, photosJSON, updatedCp.Journal, updatedCp.HeroPhoto, updatedCp.SidePhoto1, updatedCp.SidePhoto2, updatedCp.SidePhoto3, "cp-1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
 
 	req := reqWithAuth(httptest.NewRequest("PUT", "/v1/checkpoints/cp-1", bytes.NewBuffer(body)))

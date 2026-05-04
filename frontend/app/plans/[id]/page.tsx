@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download, Grid, ChevronLeft, ChevronRight, Share2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download, Grid, ChevronLeft, ChevronRight, Maximize2, Minimize2, Share2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import InteractiveMap from "@/components/InteractiveMap";
 import PlanItemModal from "@/components/PlanItemModal";
@@ -52,6 +52,7 @@ export default function PlanDetailPage() {
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
   const [isGridModalOpen, setIsGridModalOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [expandedPanel, setExpandedPanel] = useState<"itinerary" | "map" | null>(null);
 
   const isProgrammaticScroll = useRef(false);
 
@@ -393,26 +394,26 @@ export default function PlanDetailPage() {
       <PageTransition>
         <div className="flex flex-col h-full overflow-hidden">
           {/* Header */}
-          <header className="bg-white dark:bg-gray-800 shadow-sm z-10 px-6 py-4 flex items-center justify-between flex-shrink-0">
-            <div className="flex items-center gap-4">
+          <header className="bg-white dark:bg-gray-800 shadow-sm z-10 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 md:gap-4 min-w-0 flex-1">
               <Link
                 href="/plans"
-                className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
               >
                 <ArrowLeft size={20} />
               </Link>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white leading-tight">
+              <div className="min-w-0">
+                <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white leading-tight truncate">
                   {plan.name}
                 </h1>
-                <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-1">
-                  <Calendar size={14} />
-                  {new Date(plan.startDate).toLocaleDateString()} - {new Date(plan.endDate).toLocaleDateString()}
+                <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2 mt-0.5 md:mt-1">
+                  <Calendar size={14} className="flex-shrink-0" />
+                  <span className="truncate">{new Date(plan.startDate).toLocaleDateString()} - {new Date(plan.endDate).toLocaleDateString()}</span>
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 md:gap-3 items-center flex-shrink-0">
               {!isOwner && canEdit && (
                 <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
                   Contributor
@@ -444,9 +445,11 @@ export default function PlanDetailPage() {
               {canEdit && (
                 <Link
                   href={`/plans/${id}/edit`}
-                  className="px-4 py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm"
+                  className="p-2 md:px-4 md:py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+                  title="Edit Plan Info"
                 >
-                  Edit Plan Info
+                  <Pencil size={16} />
+                  <span className="hidden md:inline">Edit Plan Info</span>
                 </Link>
               )}
               <button
@@ -463,29 +466,47 @@ export default function PlanDetailPage() {
                   URL.revokeObjectURL(url);
                   toast.success("Plan exported successfully!");
                 }}
-                className="px-4 py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+                className="p-2 md:px-4 md:py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+                title="Export JSON"
               >
                 <Download size={16} />
-                Export JSON
+                <span className="hidden md:inline">Export JSON</span>
               </button>
               {isOwner && (
                 <button
                   onClick={handleConvert}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium text-sm transition-colors shadow-sm"
+                  className="px-3 py-2 md:px-4 md:py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 font-medium text-xs md:text-sm transition-colors shadow-sm whitespace-nowrap"
                 >
-                  Convert to Trip
+                  <span className="md:hidden">To Trip</span>
+                  <span className="hidden md:inline">Convert to Trip</span>
                 </button>
               )}
             </div>
           </header>
 
           {/* Split Screen Layout */}
-          <div className="flex-1 flex overflow-hidden">
-            {/* Left Side: Itinerary & Scratchpad */}
-            <div className="w-1/2 min-w-[500px] border-r border-gray-200 dark:border-gray-700 flex flex-col bg-gray-50 dark:bg-gray-900 relative overflow-hidden">
+          <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+            {/* Left Side / Top Half: Itinerary & Scratchpad */}
+            <div
+              className={`${
+                expandedPanel === "map"
+                  ? "hidden"
+                  : expandedPanel === "itinerary"
+                    ? "flex-1 md:w-full md:min-w-0"
+                    : "flex-1 md:flex-none md:w-1/2 md:min-w-[500px] border-b md:border-b-0 md:border-r border-gray-200 dark:border-gray-700"
+              } flex flex-col bg-gray-50 dark:bg-gray-900 relative overflow-hidden min-h-0`}
+            >
+              <button
+                onClick={() => setExpandedPanel(expandedPanel === "itinerary" ? null : "itinerary")}
+                className="absolute top-3 right-3 z-20 p-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                title={expandedPanel === "itinerary" ? "Restore split view" : "Expand itinerary"}
+                aria-label={expandedPanel === "itinerary" ? "Restore split view" : "Expand itinerary"}
+              >
+                {expandedPanel === "itinerary" ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
               <div className="flex-1 overflow-y-auto">
-                <div className="p-6">
-                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 tracking-wide uppercase text-sm flex items-center justify-between">
+                <div className="p-4 md:p-6">
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 tracking-wide uppercase text-sm flex items-center justify-between pr-12">
                     <span>Scratchpad / Ideas</span>
                     {canEdit && (
                       <button
@@ -727,12 +748,24 @@ export default function PlanDetailPage() {
               )}
             </div>
 
-            {/* Right Side: InteractiveMap */}
-            <div className="flex-1 bg-white dark:bg-gray-900 p-6 relative">
-              <InteractiveMap 
-                plan={plan} 
-                selectedDayId={selectedDayId} 
-                selectedItemId={selectedItemId} 
+            {/* Right Side / Bottom Half: InteractiveMap */}
+            <div
+              className={`${
+                expandedPanel === "itinerary" ? "hidden" : "flex-1"
+              } bg-white dark:bg-gray-900 p-2 md:p-6 relative min-h-0`}
+            >
+              <button
+                onClick={() => setExpandedPanel(expandedPanel === "map" ? null : "map")}
+                className="absolute top-4 right-4 md:top-8 md:right-8 z-[1000] p-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white border border-gray-200 dark:border-gray-700 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                title={expandedPanel === "map" ? "Restore split view" : "Expand map"}
+                aria-label={expandedPanel === "map" ? "Restore split view" : "Expand map"}
+              >
+                {expandedPanel === "map" ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+              </button>
+              <InteractiveMap
+                plan={plan}
+                selectedDayId={selectedDayId}
+                selectedItemId={selectedItemId}
                 isSelectingLocation={isSelectingLocation}
                 onMapClick={handleMapClick}
                 onItemSelect={handleMarkerClick}

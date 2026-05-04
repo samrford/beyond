@@ -12,6 +12,7 @@ interface CheckpointModalProps {
   onSubmit: (data: CheckpointData) => Promise<void>;
   isSaving: boolean;
   title: string;
+  tripStartDate?: string;
 }
 
 export default function CheckpointModal({
@@ -21,6 +22,7 @@ export default function CheckpointModal({
   onSubmit,
   isSaving,
   title,
+  tripStartDate,
 }: CheckpointModalProps) {
   const formRef = useRef<CheckpointFormHandle>(null);
 
@@ -54,6 +56,7 @@ export default function CheckpointModal({
               onSubmit={onSubmit}
               onCancel={onClose}
               isLoading={isSaving}
+              tripStartDate={tripStartDate}
             />
           )}
         </div>

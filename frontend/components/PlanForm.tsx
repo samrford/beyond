@@ -14,11 +14,18 @@ import {
   MapPin as MapPinIcon,
   AlignLeft as AlignLeftIcon
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { getImageUrl, apiDelete } from "@/lib/api";
 import DatePicker from "./DatePicker";
 import GooglePhotosPicker from "./GooglePhotosPicker";
 import ConfirmModal from "./ConfirmModal";
 import { Plan } from "@/lib/queries/plans";
+
+function parseLocalDate(s: string): Date | undefined {
+  if (!s) return undefined;
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 interface PlanFormProps {
   initialData?: Partial<Plan>;
@@ -29,6 +36,7 @@ interface PlanFormProps {
 export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormProps) {
   const [isDirty, setIsDirty] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showPastDateConfirm, setShowPastDateConfirm] = useState(false);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -86,8 +94,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitForm = () => {
     const submissionData = {
       ...formData,
       startDate: formData.startDate ? `${formData.startDate}T00:00:00Z` : "",
@@ -96,6 +103,39 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
     onSubmit(submissionData);
     pendingUploads.current.clear();
     setIsDirty(false);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (
+      formData.startDate &&
+      formData.endDate &&
+      formData.endDate < formData.startDate
+    ) {
+      toast.error("End date can't be before start date");
+      return;
+    }
+
+    // Warn when the start date was just set to a past date — guards against
+    // typos like picking this year instead of next. Skip the warning if the
+    // date already matched the initial value (so editing a long-past trip
+    // doesn't nag on every save).
+    const now = new Date();
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const initialStart = initialData?.startDate
+      ? new Date(initialData.startDate).toISOString().split("T")[0]
+      : "";
+    if (
+      formData.startDate &&
+      formData.startDate < todayStr &&
+      formData.startDate !== initialStart
+    ) {
+      setShowPastDateConfirm(true);
+      return;
+    }
+
+    submitForm();
   };
 
   return (
@@ -125,6 +165,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
             value={formData.startDate}
             onChange={(v) => { setIsDirty(true); setFormData((prev) => ({ ...prev, startDate: v })); }}
             placeholder="Select a date"
+            maxDate={parseLocalDate(formData.endDate)}
           />
         </div>
         <div>
@@ -135,6 +176,7 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
             value={formData.endDate}
             onChange={(v) => { setIsDirty(true); setFormData((prev) => ({ ...prev, endDate: v })); }}
             placeholder="Select a date"
+            minDate={parseLocalDate(formData.startDate)}
           />
         </div>
       </div>
@@ -260,6 +302,19 @@ export default function PlanForm({ initialData, onSubmit, isLoading }: PlanFormP
         window.history.back();
       }}
       onCancel={() => setShowCancelConfirm(false)}
+    />
+
+    <ConfirmModal
+      isOpen={showPastDateConfirm}
+      title="Start date is in the past"
+      message="The start date you selected is before today. Continue anyway?"
+      confirmLabel="Continue"
+      confirmVariant="primary"
+      onConfirm={() => {
+        setShowPastDateConfirm(false);
+        submitForm();
+      }}
+      onCancel={() => setShowPastDateConfirm(false)}
     />
     </>
   );
