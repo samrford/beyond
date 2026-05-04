@@ -24,7 +24,7 @@ func NewCheckpointsHandler(db *sql.DB) *CheckpointsHandler {
 	}
 }
 
-// CreateCheckpoint handles POST /v1/trips/:id/checkpoints
+// CreateCheckpoint handles POST /v1/trips/:id/checkpoints (owner or contributor)
 func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	parts := strings.Split(r.URL.Path, "/")
@@ -34,9 +34,13 @@ func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Req
 	}
 	tripID := parts[3]
 
-	// Verify trip belongs to user
-	var exists bool
-	if err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM trips WHERE id = $1 AND user_id = $2)", tripID, userID).Scan(&exists); err != nil || !exists {
+	acc, err := data.GetTripAccess(h.db, userID, tripID)
+	if err != nil {
+		log.Printf("Error checking trip access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Trip not found", http.StatusNotFound)
 		return
 	}
@@ -50,7 +54,7 @@ func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Req
 	c.ID = uuid.New().String()
 	photosJSON, _ := json.Marshal(c.Photos)
 
-	_, err := h.db.Exec(
+	_, err = h.db.Exec(
 		"INSERT INTO checkpoints (id, trip_id, name, location, timestamp, end_timestamp, description, photos, journal, hero_photo, side_photo_1, side_photo_2, side_photo_3) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)",
 		c.ID, tripID, c.Name, c.Location, c.Timestamp, c.EndTimestamp, c.Description, photosJSON, c.Journal, c.HeroPhoto, c.SidePhoto1, c.SidePhoto2, c.SidePhoto3,
 	)
@@ -64,17 +68,28 @@ func (h *CheckpointsHandler) CreateCheckpoint(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(c)
 }
 
-// UpdateCheckpoint handles PUT /v1/checkpoints/:id
+// UpdateCheckpoint handles PUT /v1/checkpoints/:id (owner or contributor of parent trip)
 func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/checkpoints/")
 
-	// Verify checkpoint belongs to a trip owned by this user
-	var exists bool
-	if err := h.db.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM checkpoints c JOIN trips t ON c.trip_id = t.id WHERE c.id = $1 AND t.user_id = $2)",
-		id, userID,
-	).Scan(&exists); err != nil || !exists {
+	tripID, err := h.tripIDForCheckpoint(id)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Checkpoint not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("Error looking up checkpoint trip: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	acc, err := data.GetTripAccess(h.db, userID, tripID)
+	if err != nil {
+		log.Printf("Error checking trip access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Checkpoint not found", http.StatusNotFound)
 		return
 	}
@@ -87,7 +102,7 @@ func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Req
 
 	photosJSON, _ := json.Marshal(c.Photos)
 
-	_, err := h.db.Exec(
+	_, err = h.db.Exec(
 		"UPDATE checkpoints SET name = $1, location = $2, timestamp = $3, end_timestamp = $4, description = $5, photos = $6, journal = $7, hero_photo = $8, side_photo_1 = $9, side_photo_2 = $10, side_photo_3 = $11 WHERE id = $12",
 		c.Name, c.Location, c.Timestamp, c.EndTimestamp, c.Description, photosJSON, c.Journal, c.HeroPhoto, c.SidePhoto1, c.SidePhoto2, c.SidePhoto3, id,
 	)
@@ -101,22 +116,33 @@ func (h *CheckpointsHandler) UpdateCheckpoint(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(c)
 }
 
-// DeleteCheckpoint handles DELETE /v1/checkpoints/:id
+// DeleteCheckpoint handles DELETE /v1/checkpoints/:id (owner or contributor of parent trip)
 func (h *CheckpointsHandler) DeleteCheckpoint(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/checkpoints/")
 
-	// Verify checkpoint belongs to a trip owned by this user
-	var exists bool
-	if err := h.db.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM checkpoints c JOIN trips t ON c.trip_id = t.id WHERE c.id = $1 AND t.user_id = $2)",
-		id, userID,
-	).Scan(&exists); err != nil || !exists {
+	tripID, err := h.tripIDForCheckpoint(id)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Checkpoint not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("Error looking up checkpoint trip: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	acc, err := data.GetTripAccess(h.db, userID, tripID)
+	if err != nil {
+		log.Printf("Error checking trip access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Checkpoint not found", http.StatusNotFound)
 		return
 	}
 
-	_, err := h.db.Exec("DELETE FROM checkpoints WHERE id = $1", id)
+	_, err = h.db.Exec("DELETE FROM checkpoints WHERE id = $1", id)
 	if err != nil {
 		log.Printf("Error deleting checkpoint: %v", err)
 		http.Error(w, "Failed to delete checkpoint", http.StatusInternalServerError)
@@ -124,4 +150,10 @@ func (h *CheckpointsHandler) DeleteCheckpoint(w http.ResponseWriter, r *http.Req
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *CheckpointsHandler) tripIDForCheckpoint(checkpointID string) (string, error) {
+	var tripID string
+	err := h.db.QueryRow("SELECT trip_id FROM checkpoints WHERE id = $1", checkpointID).Scan(&tripID)
+	return tripID, err
 }

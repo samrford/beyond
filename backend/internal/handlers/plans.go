@@ -23,10 +23,26 @@ func NewPlansHandler(db *sql.DB) *PlansHandler {
 	}
 }
 
-// ListPlans handles GET /v1/plans
+// ListPlans handles GET /v1/plans. Returns plans the caller owns or
+// collaborates on.
 func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
-	rows, err := h.db.Query("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public FROM plans WHERE user_id = $1 ORDER BY start_date ASC", userID)
+	rows, err := h.db.Query(`
+		SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public, role
+		FROM (
+			SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public,
+			       'owner'::text AS role
+			FROM plans
+			WHERE user_id = $1
+			UNION ALL
+			SELECT p.id, p.name, p.start_date, p.end_date, p.summary, p.cover_photo, p.created_at, p.updated_at, p.is_public,
+			       c.role
+			FROM plans p
+			JOIN plan_collaborators c ON c.plan_id = p.id
+			WHERE c.user_id = $1 AND p.user_id != $1
+		) merged
+		ORDER BY start_date ASC
+	`, userID)
 	if err != nil {
 		log.Printf("Error querying plans: %v", err)
 		http.Error(w, "Failed to load plans", http.StatusInternalServerError)
@@ -37,14 +53,14 @@ func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 	var plans []data.Plan
 	for rows.Next() {
 		var p data.Plan
-		if err := rows.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt, &p.IsPublic); err != nil {
+		if err := rows.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt, &p.IsPublic, &p.Role); err != nil {
 			log.Printf("Error scanning plan: %v", err)
 			continue
 		}
 		// Initialize empty arrays so they don't marshal to null
 		p.Days = []data.PlanDay{}
 		p.Unassigned = []data.PlanItem{}
-		p.IsOwner = true
+		p.IsOwner = p.Role == string(data.RoleOwner)
 		plans = append(plans, p)
 	}
 
@@ -60,27 +76,29 @@ func (h *PlansHandler) GetPlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
 
-	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public, user_id FROM plans WHERE id = $1", id)
+	acc, err := data.GetPlanAccess(h.db, userID, id)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Failed to load plan", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanRead() {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Plan not found"})
+		return
+	}
+
+	row := h.db.QueryRow("SELECT id, name, start_date, end_date, summary, cover_photo, created_at, updated_at, is_public FROM plans WHERE id = $1", id)
 
 	var p data.Plan
-	var ownerID string
-	if err := row.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt, &p.IsPublic, &ownerID); err != nil {
-		if err == sql.ErrNoRows {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Plan not found"})
-			return
-		}
+	if err := row.Scan(&p.ID, &p.Name, &p.StartDate, &p.EndDate, &p.Summary, &p.CoverPhoto, &p.CreatedAt, &p.UpdatedAt, &p.IsPublic); err != nil {
 		log.Printf("Error querying plan: %v", err)
 		http.Error(w, "Failed to load plan", http.StatusInternalServerError)
 		return
 	}
 
-	p.IsOwner = ownerID == userID
-	if !p.IsOwner && !p.IsPublic {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"error": "Plan not found"})
-		return
-	}
+	p.IsOwner = acc.Role.IsOwner()
+	p.Role = string(acc.Role)
 
 	// 1. Fetch PlanDays
 	dRows, err := h.db.Query("SELECT id, date, notes FROM plan_days WHERE plan_id = $1 ORDER BY date ASC", id)
@@ -196,14 +214,27 @@ func (h *PlansHandler) CreatePlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.IsOwner = true
+	p.Role = string(data.RoleOwner)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(p)
 }
 
-// UpdatePlan handles PUT /v1/plans/:id
+// UpdatePlan handles PUT /v1/plans/:id. Owners may change anything; contributors
+// may edit content but not visibility (`is_public`).
 func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
+
+	acc, err := data.GetPlanAccess(h.db, userID, id)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Failed to update plan", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
+		http.Error(w, "Plan not found", http.StatusNotFound)
+		return
+	}
 
 	var p data.Plan
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
@@ -214,9 +245,14 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	p.UpdatedAt = now
 
-	_, err := h.db.Exec(
-		"UPDATE plans SET name = $1, start_date = $2, end_date = $3, summary = $4, cover_photo = $5, updated_at = $6, is_public = $7 WHERE id = $8 AND user_id = $9",
-		p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.UpdatedAt, p.IsPublic, id, userID,
+	isPublic := p.IsPublic
+	if !acc.Role.IsOwner() {
+		isPublic = acc.IsPublic
+	}
+
+	_, err = h.db.Exec(
+		"UPDATE plans SET name = $1, start_date = $2, end_date = $3, summary = $4, cover_photo = $5, updated_at = $6, is_public = $7 WHERE id = $8",
+		p.Name, p.StartDate, p.EndDate, p.Summary, p.CoverPhoto, p.UpdatedAt, isPublic, id,
 	)
 	if err != nil {
 		log.Printf("Error updating plan: %v", err)
@@ -225,11 +261,13 @@ func (h *PlansHandler) UpdatePlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.ID = id
-	p.IsOwner = true
+	p.IsPublic = isPublic
+	p.IsOwner = acc.Role.IsOwner()
+	p.Role = string(acc.Role)
 	json.NewEncoder(w).Encode(p)
 }
 
-// DeletePlan handles DELETE /v1/plans/:id
+// DeletePlan handles DELETE /v1/plans/:id (owner only).
 func (h *PlansHandler) DeletePlan(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/")
@@ -353,6 +391,8 @@ func sanitizeTime(t *string) *string {
 }
 
 // ConvertPlanToTrip handles POST /v1/plans/:id/convert
+// TODO: when implementing, copy plan_collaborators to trip_collaborators so
+// shared access carries over.
 func (h *PlansHandler) ConvertPlanToTrip(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Convert to Trip is not yet implemented", http.StatusNotImplemented)
 }

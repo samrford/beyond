@@ -3,12 +3,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download, Grid, ChevronLeft, ChevronRight, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowLeft, Calendar, MapPin, Clock, Plus, TriangleAlert, Trash2, Pencil, Download, Grid, ChevronLeft, ChevronRight, Maximize2, Minimize2, Share2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import InteractiveMap from "@/components/InteractiveMap";
 import PlanItemModal from "@/components/PlanItemModal";
 import ConfirmModal from "@/components/ConfirmModal";
 import GridModal from "@/components/GridModal";
+import ShareModal from "@/components/ShareModal";
 import {
   usePlan,
   useDeletePlan,
@@ -50,6 +51,7 @@ export default function PlanDetailPage() {
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isSelectingLocation, setIsSelectingLocation] = useState(false);
   const [isGridModalOpen, setIsGridModalOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState<"itinerary" | "map" | null>(null);
 
   const isProgrammaticScroll = useRef(false);
@@ -385,6 +387,7 @@ export default function PlanDetailPage() {
   }
 
   const isOwner = plan.isOwner;
+  const canEdit = plan.role === "owner" || plan.role === "contributor";
 
   return (
     <main className="h-screen flex flex-col bg-transparent overflow-hidden">
@@ -410,7 +413,26 @@ export default function PlanDetailPage() {
               </div>
             </div>
 
-            <div className="flex gap-2 md:gap-3 flex-shrink-0">
+            <div className="flex gap-2 md:gap-3 items-center flex-shrink-0">
+              {!isOwner && canEdit && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                  Contributor
+                </span>
+              )}
+              {!isOwner && !canEdit && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                  Viewer
+                </span>
+              )}
+              {isOwner && (
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="p-2 text-gray-500 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400 rounded-md hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors"
+                  title="Share Plan"
+                >
+                  <Share2 size={20} />
+                </button>
+              )}
               {isOwner && (
                 <button
                   onClick={() => setIsDeleting(true)}
@@ -420,7 +442,7 @@ export default function PlanDetailPage() {
                   <Trash2 size={20} />
                 </button>
               )}
-              {isOwner && (
+              {canEdit && (
                 <Link
                   href={`/plans/${id}/edit`}
                   className="p-2 md:px-4 md:py-2 bg-white text-gray-700 border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
@@ -486,7 +508,7 @@ export default function PlanDetailPage() {
                 <div className="p-4 md:p-6">
                   <h2 className="text-lg font-bold text-gray-800 dark:text-gray-100 mb-4 tracking-wide uppercase text-sm flex items-center justify-between pr-12">
                     <span>Scratchpad / Ideas</span>
-                    {isOwner && (
+                    {canEdit && (
                       <button
                         onClick={handleAddIdea}
                         className="text-primary-600 dark:text-primary-400 hover:text-primary-700 text-sm normal-case font-medium"
@@ -507,11 +529,11 @@ export default function PlanDetailPage() {
                           <div
                             key={item.id}
                             id={`item-${item.id}`}
-                            draggable={isOwner}
+                            draggable={canEdit}
                             onDragStart={(e) => handleDragStart(e, item, "scratchpad", null)}
                             onDragEnd={() => setActiveDragItem(null)}
                             onClick={() => setSelectedItemId(item.id)}
-                            className={`p-3 bg-gray-50 dark:bg-gray-700 rounded border shadow-sm flex items-start gap-3 ${isOwner ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : 'border-gray-100 dark:border-gray-600'}`}
+                            className={`p-3 bg-gray-50 dark:bg-gray-700 rounded border shadow-sm flex items-start gap-3 ${canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : 'border-gray-100 dark:border-gray-600'}`}
                           >
                             <MapPin className={`${selectedItemId === item.id ? 'text-primary-500' : 'text-gray-400'} mt-0.5 shrink-0 transition-colors`} size={16} />
                             <div className="flex-1 min-w-0 pr-8">
@@ -525,7 +547,7 @@ export default function PlanDetailPage() {
                               </div>
                               {item.location && <p className="text-xs text-gray-500 mt-1 truncate">{item.location}</p>}
                             </div>
-                            {isOwner && (
+                            {canEdit && (
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -542,7 +564,7 @@ export default function PlanDetailPage() {
                       </div>
                     ) : (
                       <div className="flex flex-col items-center justify-center h-full py-4 text-center pointer-events-none">
-                        <p className="text-gray-500 dark:text-gray-400 text-sm">{isOwner ? "Drop items here to unassign them, or add new ideas!" : "No unassigned items."}</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm">{canEdit ? "Drop items here to unassign them, or add new ideas!" : "No unassigned items."}</p>
                       </div>
                     )}
                   </div>
@@ -622,11 +644,11 @@ export default function PlanDetailPage() {
                                     <div key={item.id}>
                                       <div
                                         id={`item-${item.id}`}
-                                        draggable={isOwner}
+                                        draggable={canEdit}
                                         onDragStart={(e) => handleDragStart(e, item, "day", day.id)}
                                         onDragEnd={() => setActiveDragItem(null)}
                                         onClick={() => setSelectedItemId(item.id)}
-                                        className={`p-3 rounded border shadow-sm flex items-start gap-3 ${isOwner ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : !hasTime ? "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800" : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600"}`}
+                                        className={`p-3 rounded border shadow-sm flex items-start gap-3 ${canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} hover:border-primary-300 dark:hover:border-primary-500 transition-colors group relative ${selectedItemId === item.id ? 'ring-2 ring-primary-500 border-primary-500 bg-white dark:bg-gray-600' : !hasTime ? "bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800" : "bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600"}`}
                                       >
                                         {hasTime ? (
                                           <Clock className={`${selectedItemId === item.id ? 'text-primary-500' : 'text-primary-400'} mt-0.5 shrink-0 transition-colors`} size={16} />
@@ -656,7 +678,7 @@ export default function PlanDetailPage() {
                                             <p className="text-[10px] text-gray-400 mt-1">Ends at {getEndTime(item)}</p>
                                           )}
                                         </div>
-                                        {isOwner && (
+                                        {canEdit && (
                                           <button
                                             onClick={(e) => {
                                               e.stopPropagation();
@@ -694,7 +716,7 @@ export default function PlanDetailPage() {
                  ) : (
                       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 text-center">
                         <p className="text-gray-500 dark:text-gray-400 mb-4">No days added to this itinerary yet.</p>
-                        {isOwner && (
+                        {canEdit && (
                           <button
                             onClick={handleGenerateDays}
                             disabled={isGenerating}
@@ -761,13 +783,17 @@ export default function PlanDetailPage() {
         onCancel={() => setIsDeleting(false)}
       />
 
-      <GridModal 
+      <GridModal
         isOpen={isGridModalOpen}
         onClose={() => setIsGridModalOpen(false)}
         days={plan.days || []}
         onSelectDay={(dayId) => setSelectedDayId(dayId)}
         selectedDayId={selectedDayId}
       />
+
+      {shareOpen && (
+        <ShareModal kind="plan" resourceId={plan.id} onClose={() => setShareOpen(false)} />
+      )}
     </main>
   );
 }

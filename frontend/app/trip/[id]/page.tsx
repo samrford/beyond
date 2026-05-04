@@ -3,12 +3,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Pencil, Trash2, ArrowLeft, Lock, Globe } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowLeft, Lock, Globe, Share2 } from "lucide-react";
 import CheckpointCard from "@/components/CheckpointCard";
 import ConfirmModal from "@/components/ConfirmModal";
 import PageTransition from "@/components/PageTransition";
 import CheckpointModal from "@/components/CheckpointModal";
 import QueryBoundary from "@/components/QueryBoundary";
+import ShareModal from "@/components/ShareModal";
 import { useTrip, useDeleteTrip, useDeleteCheckpoint, useUpdateCheckpoint, useCreateCheckpoint, useUpdateTrip, Checkpoint } from "@/lib/queries/trips";
 import { CheckpointData } from "@/components/CheckpointForm";
 import { getImageUrl } from "@/lib/api";
@@ -64,6 +65,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
     isOpen: false,
     checkpoint: null,
   });
+  const [shareOpen, setShareOpen] = useState(false);
 
   const handleDeleteTrip = () => {
     setDeleteModal({ isOpen: true, type: "trip", id: params.id });
@@ -141,6 +143,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
   }
 
   const isOwner = trip.isOwner;
+  const canEdit = trip.role === "owner" || trip.role === "contributor";
   const heroSrc = getImageUrl(trip.headerPhoto, 2400);
 
   return (
@@ -152,7 +155,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
         isDirty={isDirty}
         isSaving={updateTripMutation.isPending}
         onSave={handleSaveBg}
-        readOnly={!isOwner}
+        readOnly={!canEdit}
       />
       <PageTransition>
         {/* Header Section */}
@@ -186,32 +189,52 @@ export default function TripPage({ params }: { params: { id: string } }) {
       {/* Trip Info */}
       <div className="max-w-4xl mx-auto relative px-4 text-gray-800 dark:text-gray-100">
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border-none relative">
-          {isOwner && (
+          {(isOwner || canEdit) && (
             <div className="absolute top-6 right-6 flex items-center gap-2">
-              <span
-                className={`hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
-                  trip.isPublic
-                    ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
-                    : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-                }`}
-              >
-                {trip.isPublic ? <Globe size={12} /> : <Lock size={12} />}
-                {trip.isPublic ? "Public" : "Private"}
-              </span>
-              <Link
-                href={`/trip/${trip.id}/edit`}
-                className="p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors border-none"
-                title="Edit Trip"
-              >
-                <Pencil size={20} />
-              </Link>
-              <button
-                onClick={handleDeleteTrip}
-                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors border-none focus:outline-none"
-                title="Delete Trip"
-              >
-                <Trash2 size={20} />
-              </button>
+              {isOwner && (
+                <span
+                  className={`hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${
+                    trip.isPublic
+                      ? "bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                  }`}
+                >
+                  {trip.isPublic ? <Globe size={12} /> : <Lock size={12} />}
+                  {trip.isPublic ? "Public" : "Private"}
+                </span>
+              )}
+              {!isOwner && (
+                <span className="hidden sm:inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">
+                  Contributor
+                </span>
+              )}
+              {isOwner && (
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors border-none"
+                  title="Share Trip"
+                >
+                  <Share2 size={20} />
+                </button>
+              )}
+              {canEdit && (
+                <Link
+                  href={`/trip/${trip.id}/edit`}
+                  className="p-2 text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-full transition-colors border-none"
+                  title="Edit Trip"
+                >
+                  <Pencil size={20} />
+                </Link>
+              )}
+              {isOwner && (
+                <button
+                  onClick={handleDeleteTrip}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors border-none focus:outline-none"
+                  title="Delete Trip"
+                >
+                  <Trash2 size={20} />
+                </button>
+              )}
             </div>
           )}
           <h1 className="text-3xl font-bold mb-2 pr-20">{trip.name}</h1>
@@ -226,7 +249,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
       <div className="max-w-4xl mx-auto px-4 py-8 border-none">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold text-white border-none bg-black/35 backdrop-blur-sm rounded-lg px-4 py-1.5">Trip Timeline</h2>
-          {isOwner && (
+          {canEdit && (
             <button
               onClick={() => setEditModal({ isOpen: true, checkpoint: null })}
               className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary-600 text-white dark:bg-primary-500 rounded-md hover:bg-primary-700 dark:hover:bg-primary-600 border-none font-medium text-sm transition-colors"
@@ -271,7 +294,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
                 onEdit={handleEditCheckpoint}
                 isFirst={date !== prevDate}
                 isLast={date !== nextDate}
-                readOnly={!isOwner}
+                readOnly={!canEdit}
               />
             );
             return nodes;
@@ -297,6 +320,10 @@ export default function TripPage({ params }: { params: { id: string } }) {
         isSaving={editModal.checkpoint ? updateCheckpointMutation.isPending : createCheckpointMutation.isPending}
         tripStartDate={trip?.startDate}
       />
+
+      {shareOpen && (
+        <ShareModal kind="trip" resourceId={trip.id} onClose={() => setShareOpen(false)} />
+      )}
     </main>
   );
 }

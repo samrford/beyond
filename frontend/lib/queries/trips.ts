@@ -12,6 +12,8 @@ export type TripBgMode =
   | "grid"
   | "waves";
 
+export type CollaboratorRole = "owner" | "contributor" | "viewer";
+
 export interface Trip {
   id: string;
   name: string;
@@ -25,6 +27,7 @@ export interface Trip {
   bgDarkness: number;
   isPublic: boolean;
   isOwner: boolean;
+  role: CollaboratorRole;
   checkpoints: Checkpoint[] | null;
 }
 

@@ -22,7 +22,7 @@ func NewPlanItemsHandler(db *sql.DB) *PlanItemsHandler {
 	}
 }
 
-// CreatePlanItem handles POST /v1/plans/:plan_id/items
+// CreatePlanItem handles POST /v1/plans/:plan_id/items (owner or contributor)
 func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 	if len(parts) < 5 {
@@ -37,11 +37,14 @@ func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Verify plan belongs to user
 	userID := GetUserID(r.Context())
-	var exists bool
-	err := h.db.QueryRow("SELECT EXISTS(SELECT 1 FROM plans WHERE id = $1 AND user_id = $2)", planID, userID).Scan(&exists)
-	if err != nil || !exists {
+	acc, err := data.GetPlanAccess(h.db, userID, planID)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Plan not found", http.StatusNotFound)
 		return
 	}
@@ -63,17 +66,28 @@ func (h *PlanItemsHandler) CreatePlanItem(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(i)
 }
 
-// UpdatePlanItem handles PUT /v1/plans/items/:id
+// UpdatePlanItem handles PUT /v1/plans/items/:id (owner or contributor of parent plan)
 func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/items/")
 
-	// Verify plan item belongs to a plan owned by this user
-	var exists bool
-	if err := h.db.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM plan_items i JOIN plans p ON i.plan_id = p.id WHERE i.id = $1 AND p.user_id = $2)",
-		id, userID,
-	).Scan(&exists); err != nil || !exists {
+	planID, err := h.planIDForItem(id)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Plan item not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("Error looking up plan item: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	acc, err := data.GetPlanAccess(h.db, userID, planID)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Plan item not found", http.StatusNotFound)
 		return
 	}
@@ -84,7 +98,7 @@ func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	_, err := h.db.Exec(
+	_, err = h.db.Exec(
 		"UPDATE plan_items SET plan_day_id = $1, name = $2, description = $3, location = $4, latitude = $5, longitude = $6, order_index = $7, estimated_time = $8, start_time = $9, duration = $10 WHERE id = $11",
 		i.PlanDayID, i.Name, i.Description, i.Location, i.Latitude, i.Longitude, i.OrderIndex, i.EstimatedTime, i.StartTime, i.Duration, id,
 	)
@@ -98,22 +112,33 @@ func (h *PlanItemsHandler) UpdatePlanItem(w http.ResponseWriter, r *http.Request
 	json.NewEncoder(w).Encode(i)
 }
 
-// DeletePlanItem handles DELETE /v1/plans/items/:id
+// DeletePlanItem handles DELETE /v1/plans/items/:id (owner or contributor of parent plan)
 func (h *PlanItemsHandler) DeletePlanItem(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/plans/items/")
 
-	// Verify plan item belongs to a plan owned by this user
-	var exists bool
-	if err := h.db.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM plan_items i JOIN plans p ON i.plan_id = p.id WHERE i.id = $1 AND p.user_id = $2)",
-		id, userID,
-	).Scan(&exists); err != nil || !exists {
+	planID, err := h.planIDForItem(id)
+	if err == sql.ErrNoRows {
+		http.Error(w, "Plan item not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("Error looking up plan item: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	acc, err := data.GetPlanAccess(h.db, userID, planID)
+	if err != nil {
+		log.Printf("Error checking plan access: %v", err)
+		http.Error(w, "Internal error", http.StatusInternalServerError)
+		return
+	}
+	if !acc.Found || !acc.Role.CanEdit() {
 		http.Error(w, "Plan item not found", http.StatusNotFound)
 		return
 	}
 
-	_, err := h.db.Exec("DELETE FROM plan_items WHERE id = $1", id)
+	_, err = h.db.Exec("DELETE FROM plan_items WHERE id = $1", id)
 	if err != nil {
 		log.Printf("Error deleting plan item: %v", err)
 		http.Error(w, "Failed to delete plan item", http.StatusInternalServerError)
@@ -121,4 +146,10 @@ func (h *PlanItemsHandler) DeletePlanItem(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *PlanItemsHandler) planIDForItem(itemID string) (string, error) {
+	var planID string
+	err := h.db.QueryRow("SELECT plan_id FROM plan_items WHERE id = $1", itemID).Scan(&planID)
+	return planID, err
 }

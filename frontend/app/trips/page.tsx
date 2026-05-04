@@ -122,13 +122,25 @@ export default function TripsPage() {
                 </div>
 
                 <div className="p-6 relative border-none">
-                  <button
-                    onClick={(e) => handleDelete(trip.id, e)}
-                    className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors focus:outline-none focus:ring-2 border-none"
-                    aria-label="Delete Trip"
-                  >
-                    <Trash2 size={20} />
-                  </button>
+                  {trip.role === "owner" ? (
+                    <button
+                      onClick={(e) => handleDelete(trip.id, e)}
+                      className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors focus:outline-none focus:ring-2 border-none"
+                      aria-label="Delete Trip"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  ) : (
+                    <span
+                      className={`absolute top-4 right-4 inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+                        trip.role === "contributor"
+                          ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                          : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+                      }`}
+                    >
+                      {trip.role === "contributor" ? "Contributor" : "Viewer"}
+                    </span>
+                  )}
                   <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2 mr-8">
                     {trip.name}
                   </h2>

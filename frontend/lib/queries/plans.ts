@@ -3,6 +3,8 @@ import { apiFetch } from "../api";
 
 // ─── Types ───────────────────────────────────────────────
 
+import type { CollaboratorRole } from "./trips";
+
 export interface Plan {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export interface Plan {
   updatedAt: string;
   isPublic: boolean;
   isOwner: boolean;
+  role: CollaboratorRole;
   days: PlanDay[];
   unassigned: PlanItem[];
 }
