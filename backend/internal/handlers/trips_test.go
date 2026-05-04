@@ -70,11 +70,11 @@ func TestGetTrip(t *testing.T) {
 		WithArgs("1").
 		WillReturnRows(tripRows)
 
-	checkpointRows := sqlmock.NewRows([]string{"id", "name", "location", "timestamp", "description", "photos", "journal", "hero_photo", "side_photo_1", "side_photo_2", "side_photo_3"}).
-		AddRow("c1", "Checkpoint 1", "Location 1", now, "Description 1", []byte(`["img1.jpg"]`), "Journal 1", "", "", "", "").
-		AddRow("c2", "Checkpoint 2", "Location 2", now.Add(time.Hour), "Description 2", []byte(`[]`), "Journal 2", "", "", "", "")
+	checkpointRows := sqlmock.NewRows([]string{"id", "name", "location", "timestamp", "end_timestamp", "description", "photos", "journal", "hero_photo", "side_photo_1", "side_photo_2", "side_photo_3"}).
+		AddRow("c1", "Checkpoint 1", "Location 1", now, nil, "Description 1", []byte(`["img1.jpg"]`), "Journal 1", "", "", "", "").
+		AddRow("c2", "Checkpoint 2", "Location 2", now.Add(time.Hour), nil, "Description 2", []byte(`[]`), "Journal 2", "", "", "", "")
 
-	mock.ExpectQuery("SELECT id, name, location, timestamp, description, photos, journal, COALESCE\\(hero_photo, ''\\), COALESCE\\(side_photo_1, ''\\), COALESCE\\(side_photo_2, ''\\), COALESCE\\(side_photo_3, ''\\) FROM checkpoints WHERE trip_id = \\$1").
+	mock.ExpectQuery("SELECT id, name, location, timestamp, end_timestamp, description, photos, journal, COALESCE\\(hero_photo, ''\\), COALESCE\\(side_photo_1, ''\\), COALESCE\\(side_photo_2, ''\\), COALESCE\\(side_photo_3, ''\\) FROM checkpoints WHERE trip_id = \\$1").
 		WithArgs("1").
 		WillReturnRows(checkpointRows)
 

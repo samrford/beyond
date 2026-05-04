@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Plus, Pencil, Trash2, ArrowLeft, Lock, Globe } from "lucide-react";
@@ -225,7 +225,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
       {/* Timeline */}
       <div className="max-w-4xl mx-auto px-4 py-8 border-none">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 border-none">Trip Timeline</h2>
+          <h2 className="text-2xl font-semibold text-white border-none bg-black/35 backdrop-blur-sm rounded-lg px-4 py-1.5">Trip Timeline</h2>
           {isOwner && (
             <button
               onClick={() => setEditModal({ isOpen: true, checkpoint: null })}
@@ -237,17 +237,45 @@ export default function TripPage({ params }: { params: { id: string } }) {
           )}
         </div>
         <div className="space-y-8">
-          {trip.checkpoints?.map((checkpoint, index) => (
-            <CheckpointCard
-              key={checkpoint.id}
-              checkpoint={checkpoint}
-              index={index}
-              tripId={trip.id}
-              onDelete={handleDeleteCheckpoint}
-              onEdit={handleEditCheckpoint}
-              readOnly={!isOwner}
-            />
-          ))}
+          {(trip.checkpoints ?? []).reduce<React.ReactNode[]>((nodes, checkpoint, index) => {
+            const date = new Date(checkpoint.timestamp).toDateString();
+            const prevDate = index > 0 ? new Date(trip.checkpoints![index - 1].timestamp).toDateString() : null;
+            if (date !== prevDate) {
+              const label = new Date(checkpoint.timestamp).toLocaleDateString("en-GB", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              });
+              nodes.push(
+                <div key={`date-${checkpoint.timestamp}`} className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-primary-400 dark:bg-primary-500 [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.7))]" />
+                  <span className="text-xs font-bold text-white uppercase tracking-widest whitespace-nowrap bg-black/35 backdrop-blur-sm rounded px-2 py-0.5">
+                    {label}
+                  </span>
+                  <div className="flex-1 h-px bg-primary-400 dark:bg-primary-500 [filter:drop-shadow(0_1px_2px_rgba(0,0,0,0.7))]" />
+                </div>
+              );
+            }
+            const checkpoints = trip.checkpoints!;
+            const nextDate = index < checkpoints.length - 1
+              ? new Date(checkpoints[index + 1].timestamp).toDateString()
+              : null;
+            nodes.push(
+              <CheckpointCard
+                key={checkpoint.id}
+                checkpoint={checkpoint}
+                index={index}
+                tripId={trip.id}
+                onDelete={handleDeleteCheckpoint}
+                onEdit={handleEditCheckpoint}
+                isFirst={date !== prevDate}
+                isLast={date !== nextDate}
+                readOnly={!isOwner}
+              />
+            );
+            return nodes;
+          }, [])}
         </div>
       </div>
     </PageTransition>
@@ -267,6 +295,7 @@ export default function TripPage({ params }: { params: { id: string } }) {
         onClose={() => setEditModal({ isOpen: false, checkpoint: null })}
         onSubmit={editModal.checkpoint ? handleUpdateCheckpoint : handleCreateCheckpoint}
         isSaving={editModal.checkpoint ? updateCheckpointMutation.isPending : createCheckpointMutation.isPending}
+        tripStartDate={trip?.startDate}
       />
     </main>
   );

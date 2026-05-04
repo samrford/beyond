@@ -9,6 +9,7 @@ interface DateTimePickerProps {
   onChange: (value: string) => void;
   placeholder?: string;
   id?: string;
+  defaultMonth?: Date;
 }
 
 function formatDisplay(dateTimeStr: string): string {
@@ -72,6 +73,7 @@ export default function DateTimePicker({
   onChange,
   placeholder = "Select date & time",
   id,
+  defaultMonth,
 }: DateTimePickerProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -130,7 +132,7 @@ export default function DateTimePicker({
             mode="single"
             selected={selected}
             onSelect={handleSelectDate}
-            defaultMonth={selected}
+            defaultMonth={selected ?? defaultMonth}
             showOutsideDays
             components={{ DayButton, MonthCaption }}
             classNames={{
