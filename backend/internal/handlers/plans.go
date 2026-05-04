@@ -39,7 +39,7 @@ func (h *PlansHandler) ListPlans(w http.ResponseWriter, r *http.Request) {
 			       c.role
 			FROM plans p
 			JOIN plan_collaborators c ON c.plan_id = p.id
-			WHERE c.user_id = $1
+			WHERE c.user_id = $1 AND p.user_id != $1
 		) merged
 		ORDER BY start_date ASC
 	`, userID)

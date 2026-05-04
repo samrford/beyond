@@ -286,17 +286,20 @@ func (h *InvitesHandler) createInvite(w http.ResponseWriter, r *http.Request, ki
 			return
 		}
 
-		// Pending direct invite already outstanding? — return 409 to avoid spam.
-		var pending bool
+		// Spam guard: refuse if there's an active invite OR any invite (incl.
+		// revoked) created in the last hour. Without the time window, an owner
+		// could revoke-then-recreate in a tight loop and dispatch unbounded
+		// emails to the same recipient.
+		var blocked bool
 		if err := h.db.QueryRow(
-			"SELECT EXISTS(SELECT 1 FROM "+invitesTable(kind)+" WHERE "+resourceColumnInvites(kind)+" = $1 AND recipient_user_id = $2 AND revoked_at IS NULL)",
+			"SELECT EXISTS(SELECT 1 FROM "+invitesTable(kind)+" WHERE "+resourceColumnInvites(kind)+" = $1 AND recipient_user_id = $2 AND (revoked_at IS NULL OR created_at > NOW() - INTERVAL '1 hour'))",
 			resourceID, *body.RecipientUserID,
-		).Scan(&pending); err != nil {
+		).Scan(&blocked); err != nil {
 			log.Printf("Error checking pending invite: %v", err)
 			http.Error(w, "Internal error", http.StatusInternalServerError)
 			return
 		}
-		if pending {
+		if blocked {
 			http.Error(w, "Invite already pending for this user", http.StatusConflict)
 			return
 		}
@@ -719,7 +722,11 @@ func (h *InvitesHandler) acceptInvite(w http.ResponseWriter, r *http.Request, to
 		return
 	}
 
-	// Atomic increment + idempotent insert/upgrade.
+	// Upsert the collaborator row, then increment use_count only if this was
+	// a fresh insert. xmax = 0 on the returned row means a brand-new tuple
+	// (PostgreSQL trick); for a conflict-update, xmax holds the updating
+	// txid. This stops re-acceptances from a user who's already a member
+	// (e.g. double-tap, two open tabs) from burning a max_uses slot.
 	tx, err := h.db.Begin()
 	if err != nil {
 		log.Printf("Error beginning tx: %v", err)
@@ -727,26 +734,6 @@ func (h *InvitesHandler) acceptInvite(w http.ResponseWriter, r *http.Request, to
 		return
 	}
 	defer tx.Rollback()
-
-	res, err := tx.Exec(
-		`UPDATE `+invitesTable(inv.Kind)+`
-		 SET use_count = use_count + 1
-		 WHERE token = $1
-		   AND revoked_at IS NULL
-		   AND (max_uses IS NULL OR use_count < max_uses)
-		   AND (expires_at IS NULL OR expires_at > NOW())`,
-		token,
-	)
-	if err != nil {
-		log.Printf("Error incrementing invite: %v", err)
-		http.Error(w, "Failed to accept invite", http.StatusInternalServerError)
-		return
-	}
-	rows, _ := res.RowsAffected()
-	if rows == 0 {
-		http.Error(w, "Invite is no longer valid", http.StatusGone)
-		return
-	}
 
 	upsertQ := `
 		INSERT INTO ` + collaboratorTable(inv.Kind) + ` (` + resourceColumn(inv.Kind) + `, user_id, role, added_by)
@@ -756,11 +743,35 @@ func (h *InvitesHandler) acceptInvite(w http.ResponseWriter, r *http.Request, to
 		    WHEN ` + collaboratorTable(inv.Kind) + `.role = 'contributor' THEN 'contributor'
 		    ELSE EXCLUDED.role
 		  END
+		RETURNING (xmax = 0) AS inserted
 	`
-	if _, err := tx.Exec(upsertQ, inv.ResourceID, userID, string(inv.Role), inv.CreatedBy); err != nil {
-		log.Printf("Error inserting collaborator: %v", err)
+	var inserted bool
+	if err := tx.QueryRow(upsertQ, inv.ResourceID, userID, string(inv.Role), inv.CreatedBy).Scan(&inserted); err != nil {
+		log.Printf("Error upserting collaborator: %v", err)
 		http.Error(w, "Failed to accept invite", http.StatusInternalServerError)
 		return
+	}
+
+	if inserted {
+		res, err := tx.Exec(
+			`UPDATE `+invitesTable(inv.Kind)+`
+			 SET use_count = use_count + 1
+			 WHERE token = $1
+			   AND revoked_at IS NULL
+			   AND (max_uses IS NULL OR use_count < max_uses)
+			   AND (expires_at IS NULL OR expires_at > NOW())`,
+			token,
+		)
+		if err != nil {
+			log.Printf("Error incrementing invite: %v", err)
+			http.Error(w, "Failed to accept invite", http.StatusInternalServerError)
+			return
+		}
+		rows, _ := res.RowsAffected()
+		if rows == 0 {
+			http.Error(w, "Invite is no longer valid", http.StatusGone)
+			return
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

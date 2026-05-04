@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { safeNext } from "@/lib/safeNext";
 import { Compass, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -17,7 +18,7 @@ export default function LoginPage() {
   const [socialLoading, setSocialLoading] = useState<Provider | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const next = searchParams?.get("next") ?? "/";
+  const next = safeNext(searchParams?.get("next"));
   const supabase = createClient();
 
   const handleEmailLogin = async (e: React.FormEvent) => {

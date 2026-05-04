@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { safeNext } from "@/lib/safeNext";
 import { NextResponse } from "next/server";
 
 /**
@@ -9,7 +10,7 @@ import { NextResponse } from "next/server";
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
-  const next = requestUrl.searchParams.get("next") ?? "/";
+  const next = safeNext(requestUrl.searchParams.get("next"));
 
   // Determine the correct origin for redirect, honoring reverse proxy headers (e.g. Fly.io)
   const forwardedHost = request.headers.get("x-forwarded-host");

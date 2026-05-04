@@ -41,7 +41,7 @@ func (h *TripsHandler) ListTrips(w http.ResponseWriter, r *http.Request) {
 			       c.role
 			FROM trips t
 			JOIN trip_collaborators c ON c.trip_id = t.id
-			WHERE c.user_id = $1
+			WHERE c.user_id = $1 AND t.user_id != $1
 		) merged
 		ORDER BY start_date ASC
 	`, userID)
