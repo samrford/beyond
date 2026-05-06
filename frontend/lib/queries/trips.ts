@@ -25,6 +25,7 @@ export interface Trip {
   bgDarkness: number;
   isPublic: boolean;
   isOwner: boolean;
+  ownerHandle?: string;
   checkpoints: Checkpoint[] | null;
 }
 

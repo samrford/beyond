@@ -142,6 +142,8 @@ export default function TripPage({ params }: { params: { id: string } }) {
 
   const isOwner = trip.isOwner;
   const heroSrc = getImageUrl(trip.headerPhoto, 2400);
+  const backHref = !isOwner && trip.ownerHandle ? `/u/${trip.ownerHandle}` : "/trips";
+  const backLabel = !isOwner && trip.ownerHandle ? `Back to ${trip.ownerHandle}'s profile` : "Back to all trips";
 
   return (
     <main className="min-h-screen bg-transparent">
@@ -175,11 +177,11 @@ export default function TripPage({ params }: { params: { id: string } }) {
 
       <div className="max-w-4xl mx-auto -mt-6 mb-4 relative px-4 flex items-center z-10">
         <Link
-          href="/trips"
+          href={backHref}
           className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 text-gray-700 dark:text-gray-200 rounded-md shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-primary-600 dark:hover:text-primary-400 font-medium text-sm backdrop-blur-sm transition-colors"
         >
           <ArrowLeft size={16} />
-          Back to all trips
+          {backLabel}
         </Link>
       </div>
 

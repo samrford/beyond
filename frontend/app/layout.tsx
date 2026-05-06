@@ -14,7 +14,8 @@ export const metadata: Metadata = {
 
 // Runs synchronously during HTML parse, before React hydrates.
 // Applies the `dark` class immediately so there is no flash of light mode.
-const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}}catch(e){}})();`;
+// Dark is the default; only an explicit "light" preference disables it.
+const themeScript = `(function(){try{var t=localStorage.getItem('theme');if(t!=='light'){document.documentElement.classList.add('dark');}}catch(e){document.documentElement.classList.add('dark');}})();`;
 
 export default function RootLayout({
   children,

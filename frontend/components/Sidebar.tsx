@@ -8,7 +8,6 @@ import {
   Plane,
   Moon,
   Sun,
-  Monitor,
   ChevronLeft,
   ChevronRight,
   Menu,
@@ -56,7 +55,6 @@ const Sidebar = () => {
   const themeOptions = [
     { id: "light", name: "Light", icon: Sun },
     { id: "dark", name: "Dark", icon: Moon },
-    { id: "system", name: "System", icon: Monitor },
   ] as const;
 
   // Close mobile sidebar on navigation
