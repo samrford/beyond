@@ -233,8 +233,9 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                         fill
                         className="object-cover"
                       />
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center px-1 text-center">
                         <span className="text-white font-bold text-sm">+{overflowCount}</span>
+                        <span className="text-white/80 text-[10px] leading-tight mt-0.5">(click to view more)</span>
                       </div>
                     </button>
                   ) : (
@@ -346,6 +347,9 @@ export default function CheckpointCard({ checkpoint, index, tripId, onDelete, on
                 />
               ) : (
                 <div className="flex flex-col gap-1.5">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-1">
+                    Click/tap a photo to see a larger version
+                  </p>
                   {buildRows(photos, aspectRatios).map((row, ri) => {
                     const rowSum = row.reduce((s, p) => s + (aspectRatios.get(p) ?? 1), 0);
                     // Distribute gap evenly across items so percentages add to 100%

@@ -55,11 +55,18 @@ func (h *TripsHandler) GetTrip(w http.ResponseWriter, r *http.Request) {
 	userID := GetUserID(r.Context())
 	id := strings.TrimPrefix(r.URL.Path, "/v1/trips/")
 
-	row := h.db.QueryRow("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness, is_public, user_id FROM trips WHERE id = $1", id)
+	row := h.db.QueryRow(`
+		SELECT t.id, t.name, t.start_date, t.end_date, t.header_photo, t.summary,
+			t.bg_mode, t.bg_blur, t.bg_opacity, t.bg_darkness, t.is_public, t.user_id,
+			COALESCE(p.handle, '')
+		FROM trips t
+		LEFT JOIN user_profiles p ON p.user_id = t.user_id
+		WHERE t.id = $1
+	`, id)
 
 	var t data.Trip
 	var ownerID string
-	if err := row.Scan(&t.ID, &t.Name, &t.StartDate, &t.EndDate, &t.HeaderPhoto, &t.Summary, &t.BgMode, &t.BgBlur, &t.BgOpacity, &t.BgDarkness, &t.IsPublic, &ownerID); err != nil {
+	if err := row.Scan(&t.ID, &t.Name, &t.StartDate, &t.EndDate, &t.HeaderPhoto, &t.Summary, &t.BgMode, &t.BgBlur, &t.BgOpacity, &t.BgDarkness, &t.IsPublic, &ownerID, &t.OwnerHandle); err != nil {
 		if err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
 			json.NewEncoder(w).Encode(map[string]string{"error": "Trip not found"})
