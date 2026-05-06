@@ -63,10 +63,10 @@ func TestGetTrip(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID)
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id", "handle"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID, "samrford")
 
-	mock.ExpectQuery("SELECT id, name, start_date, end_date, header_photo, summary, bg_mode, bg_blur, bg_opacity, bg_darkness, is_public, user_id FROM trips WHERE id = \\$1").
+	mock.ExpectQuery("SELECT t.id, t.name, t.start_date, t.end_date, t.header_photo, t.summary,\\s+t.bg_mode, t.bg_blur, t.bg_opacity, t.bg_darkness, t.is_public, t.user_id,\\s+COALESCE\\(p.handle, ''\\)\\s+FROM trips t\\s+LEFT JOIN user_profiles p ON p.user_id = t.user_id\\s+WHERE t.id = \\$1").
 		WithArgs("1").
 		WillReturnRows(tripRows)
 
@@ -204,7 +204,7 @@ func TestGetTrip_NotFound(t *testing.T) {
 
 	h := NewTripsHandler(db)
 
-	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1").
+	mock.ExpectQuery("SELECT .* FROM trips t.* WHERE t.id = \\$1").
 		WithArgs("1").
 		WillReturnError(sql.ErrNoRows)
 
@@ -223,10 +223,10 @@ func TestGetTrip_CheckpointsError(t *testing.T) {
 	h := NewTripsHandler(db)
 
 	now := time.Now()
-	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id"}).
-		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID)
+	tripRows := sqlmock.NewRows([]string{"id", "name", "start_date", "end_date", "header_photo", "summary", "bg_mode", "bg_blur", "bg_opacity", "bg_darkness", "is_public", "user_id", "handle"}).
+		AddRow("1", "Trip 1", now, now.AddDate(0, 0, 7), "photo.jpg", "Summary 1", "default", 180, 100, 56, false, testUserID, "samrford")
 
-	mock.ExpectQuery("SELECT .* FROM trips WHERE id = \\$1").
+	mock.ExpectQuery("SELECT .* FROM trips t.* WHERE t.id = \\$1").
 		WithArgs("1").
 		WillReturnRows(tripRows)
 
