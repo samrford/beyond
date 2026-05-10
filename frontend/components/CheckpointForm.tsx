@@ -445,15 +445,15 @@ const CheckpointForm = forwardRef<CheckpointFormHandle, CheckpointFormProps>(fun
             Brief Summary
           </label>
           <div className="bg-white dark:bg-gray-800 p-1 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all focus-within:border-primary-500">
-            <input
-              type="text"
+            <textarea
               id="description"
               name="description"
               required
+              rows={3}
               placeholder="A short punchy line about the experience"
               value={formData.description}
               onChange={handleChange}
-              className="w-full bg-transparent px-4 py-3 rounded-xl focus:outline-none text-sm font-medium text-gray-900 dark:text-white"
+              className="w-full bg-transparent px-4 py-3 rounded-xl focus:outline-none text-sm font-medium text-gray-900 dark:text-white resize-y min-h-[5rem]"
             />
           </div>
         </div>
