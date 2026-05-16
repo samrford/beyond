@@ -17,6 +17,7 @@
     "@supabase/supabase-js": "^2.101.1",
     "@tanstack/react-query": "^5.96.2",
     "autoprefixer": "^10.4.20",
+    "google-photos-picker-client": "^0.3.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.7.0",
     "next": "14.2.5",

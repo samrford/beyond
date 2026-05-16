@@ -260,6 +260,10 @@ func main() {
 	googleRedirectURL := os.Getenv("GOOGLE_REDIRECT_URL")
 	googleEncKey := os.Getenv("GOOGLE_TOKEN_ENCRYPTION_KEY")
 	if googleClientID != "" && googleClientSecret != "" && googleRedirectURL != "" && googleEncKey != "" && uploader != nil {
+		frontendOrigin := os.Getenv("FRONTEND_ORIGIN")
+		if frontendOrigin == "" {
+			log.Fatal("FRONTEND_ORIGIN must be set when Google Photos is enabled (OAuth callback postMessage target — empty would broadcast the result to \"*\")")
+		}
 		if err := ppg.Migrate(db); err != nil {
 			log.Fatalf("photopicker migrate: %v", err)
 		}
@@ -289,7 +293,7 @@ func main() {
 			},
 			Callback: photopicker.CallbackPage{
 				PostMessageType: "beyond:google-oauth",
-				TargetOrigin:    os.Getenv("FRONTEND_ORIGIN"),
+				TargetOrigin:    frontendOrigin,
 			},
 		})
 		if err != nil {
